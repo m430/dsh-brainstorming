@@ -5,7 +5,7 @@ Thanks for improving `dsh-brainstorming`.
 ## Development
 
 ```bash
-pnpm install
+pnpm install --ignore-scripts
 pnpm build
 pnpm check
 ```

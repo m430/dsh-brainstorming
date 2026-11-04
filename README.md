@@ -88,7 +88,7 @@ pnpm build
 ## 开发
 
 ```bash
-pnpm install
+pnpm install --ignore-scripts
 pnpm build
 pnpm check
 ```
