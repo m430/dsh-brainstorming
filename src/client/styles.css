@@ -67,6 +67,7 @@
 .bn-editor{position:relative;width:100%;min-width:0;height:100%;min-height:0;display:flex;flex-direction:column;background:var(--dsw-alias-bg-base);overflow:hidden}
 .bn-editorTopbar{flex:none;display:flex;align-items:center;gap:10px;padding:10px clamp(16px,3vw,28px);border-bottom:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base)}
 .bn-saveStatus{flex:none;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:18px}
+.bn-saveStatus.is-error{color:var(--dsw-alias-status-error, var(--dsw-alias-label-primary))}
 .bn-editorActions{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
 .bn-canvas{position:relative;flex:1;min-height:0;overflow:hidden;background:var(--dsw-alias-bg-base);cursor:grab;touch-action:none}
 .bn-canvas:active{cursor:grabbing}

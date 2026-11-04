@@ -13,7 +13,7 @@ DeepSeek Harness Web UI 的 AI 头脑风暴插件：在无限画布上从一个�
 - **分析意图**：从当前节点提炼多个不同意图，并分别生成子节点
 - **调研流程**：选择方向 → 生成可编辑调研大纲 → 确认后生成调研结果
 - **节点编辑**：双击节点编辑内容；选中后按 `Delete` / `Backspace` 删除
-- **历史画布**：每个画布独立保存在浏览器 `localStorage`（数据 owner = browser）
+- **历史画布**：每个画布持久化在 Host `storageDomain`（数据 owner = Host；默认 JSON backend）
 - **统一 UI**：shadcn 风格组件 + Base UI 原语，详见 [`docs/UI_STANDARD.md`](docs/UI_STANDARD.md)
 
 ## 环境要求
@@ -81,7 +81,7 @@ pnpm build
 - 插件不会把 API Key 打包进前端或提交到仓库。
 - AI 请求通过 DSH 的 `ctx.llm` 服务发出，Key 留在 Host 的 credentials 层。
 - 所有插件路由走 DSH `/api` 鉴权通道，未登录请求返回 `401`。
-- 画布内容保存在浏览器 `localStorage`，属于本地数据。
+- 画布内容由 Host `storageDomain`（`brainstorm` domain）持久化，经鉴权 `/api` 访问。
 - 节点内容和提示词会发送给当前配置的模型 provider；处理敏感内容时请使用本地模型。
 - 安全问题请通过 [`SECURITY.md`](SECURITY.md) 报告。
 
@@ -98,7 +98,9 @@ pnpm check
 
 Base UI 组件打包进 `lib/client.js`，React / ReactDOM 由 Harness Client 模块表提供。
 
-画布数据目前由浏览器 `localStorage` 拥有（数据 owner = browser）；Host 只提供 AI 分析 API，不持久化 board。UI 文案单源在 `locale/ui-zh.json` / `locale/ui-en.json`，插件 meta 在 `locale/zh.json` / `locale/en.json`。
+画布数据由 Host `storageDomain` 拥有（domain `brainstorm`，`layout: per-record`，默认走 profile 已有的 JSON backend；高频写入时可在 profile 将 `brainstorm` 路由到 sqlite，插件代码不变）。Client 只持有 ephemeral 编辑态，经 `/api/.../boards` CRUD。UI 文案单源在 `locale/ui-zh.json` / `locale/ui-en.json`，插件 meta 在 `locale/zh.json` / `locale/en.json`。
+
+`pnpm verify-routes` 会核对 Host 注册的 `ctx.connection.fetch` 路由与 `src/shared/api.ts` 中的 Client 路径是否一致，避免路由漂移再次表现为 404。
 
 ### 本地热更新
 

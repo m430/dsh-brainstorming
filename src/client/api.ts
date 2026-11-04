@@ -1,23 +1,14 @@
-import { API_PATHS } from '../shared/api.js';
-import type { ApiEnvelope, ApiName, ApiResultMap } from '../shared/types.js';
+import { API_PATHS, BOARD_API_PATHS } from '../shared/api.js';
+import type { ApiEnvelope, ApiName, ApiResultMap, Board, BoardPatch, BoardSummary } from '../shared/types.js';
 
 export const API = API_PATHS;
+export const BOARDS_API = BOARD_API_PATHS;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-export async function postJson<T>(
-  path: string,
-  payload: unknown,
-  signal?: AbortSignal,
-): Promise<T> {
-  const response = await fetch(path, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
-    signal,
-  });
+async function parseEnvelope<T>(response: Response): Promise<T> {
   if (response.status === 401 || response.status === 403) {
     throw new Error('登录状态已失效，请刷新页面后重试。');
   }
@@ -36,10 +27,54 @@ export async function postJson<T>(
   return (data as unknown as ApiEnvelope<T> & { ok: true }).result;
 }
 
+export async function postJson<T>(
+  path: string,
+  payload: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal,
+  });
+  return parseEnvelope<T>(response);
+}
+
+export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(path, {
+    method: 'GET',
+    headers: { accept: 'application/json' },
+    signal,
+  });
+  return parseEnvelope<T>(response);
+}
+
 export async function postApi<K extends ApiName>(
   name: K,
   payload: unknown,
   signal?: AbortSignal,
 ): Promise<ApiResultMap[K]> {
   return postJson<ApiResultMap[K]>(API[name], payload, signal);
+}
+
+export async function listBoards(signal?: AbortSignal): Promise<BoardSummary[]> {
+  return getJson<BoardSummary[]>(BOARDS_API.list, signal);
+}
+
+export async function getBoard(id: string, signal?: AbortSignal): Promise<Board> {
+  const url = `${BOARDS_API.item}?id=${encodeURIComponent(id)}`;
+  return getJson<Board>(url, signal);
+}
+
+export async function createBoard(board: Board, signal?: AbortSignal): Promise<Board> {
+  return postJson<Board>(BOARDS_API.create, board, signal);
+}
+
+export async function updateBoard(id: string, patch: BoardPatch, signal?: AbortSignal): Promise<Board> {
+  return postJson<Board>(BOARDS_API.update, { id, patch }, signal);
+}
+
+export async function deleteBoard(id: string, signal?: AbortSignal): Promise<void> {
+  await postJson<{ id: string }>(BOARDS_API.delete, { id }, signal);
 }

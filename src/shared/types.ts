@@ -64,6 +64,16 @@ export interface Board {
 
 export type BoardPatch = Partial<Omit<Board, 'id'>>;
 
+/** List-row projection without full node payloads. */
+export interface BoardSummary {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  nodeCount: number;
+  rootIdea: string;
+}
+
 export interface PathStep {
   question: string;
   choice: string;

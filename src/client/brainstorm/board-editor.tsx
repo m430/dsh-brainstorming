@@ -16,19 +16,21 @@ export interface BoardEditorProps {
   board: Board;
   t: Translate;
   onBack: () => void;
-  onChange: (patch: BoardPatch) => void;
+  onChange: (patch: BoardPatch) => void | Promise<void>;
 }
 
 /**
  * Board editor shell.
  *
- * State ownership: Workspace owns `Board[]`. This component mounts with a board
+ * State ownership: Workspace owns durable Board. This component mounts with a board
  * snapshot (`key={board.id}` remounts on switch); runtime `nodes/pan/zoom` live
  * here and debounce-write patches back via `onChange`.
  */
 export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
   const canvasRef = React.useRef<HTMLDivElement | null>(null);
   const [modal, setModal] = React.useState<BrainstormModalState | null>(null);
+  const [title, setTitle] = React.useState(board.title || '');
+  const titleTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const state = useBoardState(board, onChange);
   const {
     nodes,
@@ -47,6 +49,8 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
     setAutoEditId,
     mutate,
     updateNode,
+    saveStatus,
+    persistPatch,
   } = state;
 
   const viewport = useBoardViewport({
@@ -80,6 +84,10 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
     setSelectedId((previous) => (previous && ids.has(previous) ? null : previous));
     setModal(null);
   };
+
+  React.useEffect(() => () => {
+    if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
+  }, []);
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -138,12 +146,25 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
         </Button>
         <Input
           className="bn-titleInput"
-          value={board.title || ''}
+          value={title}
           placeholder={t('brainstorm.boardTitlePlaceholder')}
-          onChange={(event) => onChange({ title: event.target.value })}
+          onChange={(event) => {
+            const next = event.target.value;
+            setTitle(next);
+            if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
+            titleTimerRef.current = setTimeout(() => {
+              void persistPatch({ title: next, updatedAt: Date.now() });
+            }, 220);
+          }}
           aria-label={t('brainstorm.boardTitlePlaceholder')}
         />
-        <span className="bn-saveStatus">{t('brainstorm.autoSaved')}</span>
+        <span className={`bn-saveStatus${saveStatus === 'failed' ? ' is-error' : ''}`}>
+          {saveStatus === 'failed'
+            ? t('brainstorm.saveFailed')
+            : saveStatus === 'saving'
+              ? t('brainstorm.save')
+              : t('brainstorm.autoSaved')}
+        </span>
         <div className="bn-editorActions">
           <Button variant="outline" size="sm" onClick={viewport.fitView}>
             {t('brainstorm.fitView')}

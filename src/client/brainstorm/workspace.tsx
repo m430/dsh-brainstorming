@@ -1,7 +1,13 @@
 import React from 'react';
 
-import type { Board, BoardPatch, Translate } from '../../shared/types.js';
-import { Badge } from '../ui/badge.js';
+import type { Board, BoardPatch, BoardSummary, Translate } from '../../shared/types.js';
+import {
+  createBoard as createBoardApi,
+  deleteBoard as deleteBoardApi,
+  getBoard,
+  listBoards,
+  updateBoard as updateBoardApi,
+} from '../api.js';
 import { Button } from '../ui/button.js';
 import {
   Dialog,
@@ -17,11 +23,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu.js';
-import { defaultBoardTitle, formatTime, loadBoards, makeId, saveBoards } from '../model.js';
+import { defaultBoardTitle, formatTime, makeId } from '../model.js';
 import { BoardEditor } from './board-editor.js';
 
 interface BoardCardProps {
-  board: Board;
+  board: BoardSummary;
   t: Translate;
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
@@ -69,9 +75,6 @@ function BoardCard({ board, t, onOpen, onDelete }: BoardCardProps) {
         <span>{t('brainstorm.nodeCount', { count: board.nodeCount || 0 })}</span>
         <span>{t('brainstorm.boardUpdated', { time: formatTime(board.updatedAt || board.createdAt || Date.now()) })}</span>
       </div>
-      {board.legacyNodes && board.legacyNodes.length > 0 ? (
-        <Badge className="bn-boardCardBadge">{t('brainstorm.legacyBoard')}</Badge>
-      ) : null}
       <div
         className="bn-boardCardMenuRoot"
         onClick={(event) => event.stopPropagation()}
@@ -102,31 +105,76 @@ function BoardCard({ board, t, onOpen, onDelete }: BoardCardProps) {
   );
 }
 
+function toSummary(board: Board): BoardSummary {
+  return {
+    id: board.id,
+    title: board.title,
+    createdAt: board.createdAt,
+    updatedAt: board.updatedAt,
+    nodeCount: board.nodeCount,
+    rootIdea: board.rootIdea,
+  };
+}
+
 export interface BrainstormWorkspaceProps {
   t: Translate;
 }
 
 export function BrainstormWorkspace({ t }: BrainstormWorkspaceProps) {
-  const [boards, setBoards] = React.useState<Board[]>(loadBoards);
-  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [boards, setBoards] = React.useState<BoardSummary[]>([]);
+  const [activeBoard, setActiveBoard] = React.useState<Board | null>(null);
+  const [listStatus, setListStatus] = React.useState<'loading' | 'ready' | 'error'>('loading');
+  const [listError, setListError] = React.useState<string | null>(null);
+  const [openingId, setOpeningId] = React.useState<string | null>(null);
   const [deleteBoardId, setDeleteBoardId] = React.useState<string | null>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  const refreshList = React.useCallback(async (signal?: AbortSignal) => {
+    setListStatus('loading');
+    setListError(null);
+    try {
+      const summaries = await listBoards(signal);
+      if (signal?.aborted) return;
+      setBoards(summaries);
+      setListStatus('ready');
+    } catch (error) {
+      if (signal?.aborted) return;
+      setListError(error instanceof Error ? error.message : String(error));
+      setListStatus('error');
+    }
+  }, []);
 
   React.useEffect(() => {
-    saveBoards(boards);
-  }, [boards]);
+    const controller = new AbortController();
+    void refreshList(controller.signal);
+    return () => controller.abort();
+  }, [refreshList]);
 
-  const updateBoard = (patch: BoardPatch) => {
-    if (!selectedId) return;
-    setBoards((previous) =>
-      previous.map((board) =>
-        board.id === selectedId
-          ? { ...board, ...patch, updatedAt: typeof patch.updatedAt === 'number' ? patch.updatedAt : Date.now() }
-          : board,
-      ),
-    );
+  const persistPatch = async (patch: BoardPatch) => {
+    if (!activeBoard) return;
+    const id = activeBoard.id;
+    const updatedAt = typeof patch.updatedAt === 'number' ? patch.updatedAt : Date.now();
+    const optimistic: Board = { ...activeBoard, ...patch, id, updatedAt };
+    setActiveBoard(optimistic);
+    setBoards((previous) => {
+      const summary = toSummary(optimistic);
+      const exists = previous.some((item) => item.id === id);
+      if (!exists) return [summary, ...previous];
+      return previous.map((item) => (item.id === id ? summary : item));
+    });
+    try {
+      const saved = await updateBoardApi(id, { ...patch, updatedAt });
+      setActiveBoard(saved);
+      setBoards((previous) => previous.map((item) => (item.id === id ? toSummary(saved) : item)));
+    } catch (error) {
+      // Keep optimistic memory state; surface failure to editor.
+      throw error;
+    }
   };
 
-  const createBoard = () => {
+  const createBoard = async () => {
+    if (busy) return;
+    setBusy(true);
     const board: Board = {
       id: makeId(),
       title: defaultBoardTitle(),
@@ -138,19 +186,60 @@ export function BrainstormWorkspace({ t }: BrainstormWorkspaceProps) {
       pan: { x: 120, y: 100 },
       zoom: 1,
     };
-    setBoards((previous) => [board, ...previous]);
-    setSelectedId(board.id);
+    try {
+      const created = await createBoardApi(board);
+      setBoards((previous) => [toSummary(created), ...previous.filter((item) => item.id !== created.id)]);
+      setActiveBoard(created);
+      setListStatus('ready');
+    } catch (error) {
+      setListError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const selectedBoard = boards.find((board) => board.id === selectedId) || null;
-  if (selectedBoard) {
+  const openBoard = async (id: string) => {
+    if (busy || openingId) return;
+    setOpeningId(id);
+    setListError(null);
+    try {
+      const board = await getBoard(id);
+      setActiveBoard(board);
+    } catch (error) {
+      setListError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setOpeningId(null);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteBoardId || busy) return;
+    const id = deleteBoardId;
+    setBusy(true);
+    try {
+      await deleteBoardApi(id);
+      setBoards((previous) => previous.filter((board) => board.id !== id));
+      setDeleteBoardId(null);
+      if (activeBoard?.id === id) setActiveBoard(null);
+    } catch (error) {
+      setListError(error instanceof Error ? error.message : String(error));
+      setDeleteBoardId(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (activeBoard) {
     return (
       <BoardEditor
-        key={selectedBoard.id}
-        board={selectedBoard}
+        key={activeBoard.id}
+        board={activeBoard}
         t={t}
-        onBack={() => setSelectedId(null)}
-        onChange={updateBoard}
+        onBack={() => {
+          setActiveBoard(null);
+          void refreshList();
+        }}
+        onChange={persistPatch}
       />
     );
   }
@@ -163,23 +252,45 @@ export function BrainstormWorkspace({ t }: BrainstormWorkspaceProps) {
           <p>{t('brainstorm.boardListSubtitle')}</p>
         </div>
         <div className="bn-listActions">
-          <Button variant="default" onClick={createBoard}>{t('brainstorm.newBoard')}</Button>
+          <Button variant="default" disabled={busy} onClick={() => void createBoard()}>
+            {t('brainstorm.newBoard')}
+          </Button>
         </div>
       </div>
-      {boards.length === 0 ? (
+      {listStatus === 'loading' ? (
+        <div className="bn-boardsEmpty">
+          <p>{t('brainstorm.thinking')}</p>
+        </div>
+      ) : listStatus === 'error' ? (
+        <div className="bn-boardsEmpty">
+          <h2>{t('brainstorm.canvasError')}</h2>
+          <p>{listError || t('brainstorm.canvasErrorHint')}</p>
+          <Button variant="default" onClick={() => void refreshList()}>{t('brainstorm.retry')}</Button>
+        </div>
+      ) : boards.length === 0 ? (
         <div className="bn-boardsEmpty">
           <div className="bn-boardsEmptyIcon" aria-hidden="true">◇</div>
           <h2>{t('brainstorm.emptyBoards')}</h2>
           <p>{t('brainstorm.emptyBoardsHint')}</p>
-          <Button variant="default" onClick={createBoard}>{t('brainstorm.newBoard')}</Button>
+          {listError ? <p className="bn-saveStatus is-error">{listError}</p> : null}
+          <Button variant="default" disabled={busy} onClick={() => void createBoard()}>
+            {t('brainstorm.newBoard')}
+          </Button>
         </div>
       ) : (
         <div className="bn-boardGrid">
+          {listError ? <p className="bn-saveStatus is-error">{listError}</p> : null}
           {boards
             .slice()
             .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
             .map((board) => (
-              <BoardCard board={board} t={t} key={board.id} onOpen={setSelectedId} onDelete={setDeleteBoardId} />
+              <BoardCard
+                board={board}
+                t={t}
+                key={board.id}
+                onOpen={(id) => void openBoard(id)}
+                onDelete={setDeleteBoardId}
+              />
             ))}
         </div>
       )}
@@ -192,13 +303,7 @@ export function BrainstormWorkspace({ t }: BrainstormWorkspaceProps) {
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDeleteBoardId(null)}>{t('brainstorm.cancel')}</Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  setBoards((previous) => previous.filter((board) => board.id !== deleteBoardId));
-                  setDeleteBoardId(null);
-                }}
-              >
+              <Button variant="danger" disabled={busy} onClick={() => void confirmDelete()}>
                 {t('brainstorm.deleteConfirm')}
               </Button>
             </DialogFooter>

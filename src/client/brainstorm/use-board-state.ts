@@ -3,6 +3,8 @@ import React from 'react';
 import type { Board, BoardPatch, BrainstormNode, Point } from '../../shared/types.js';
 import type { NodePatch, NodeSizes } from './types.js';
 
+export type BoardSaveStatus = 'saved' | 'saving' | 'failed';
+
 export interface BoardState {
   nodes: BrainstormNode[];
   nodesRef: React.MutableRefObject<BrainstormNode[]>;
@@ -20,13 +22,18 @@ export interface BoardState {
   setAutoEditId: React.Dispatch<React.SetStateAction<string | null>>;
   mutate: (updater: (nodes: BrainstormNode[]) => BrainstormNode[]) => void;
   updateNode: (id: string, patch: NodePatch) => void;
+  saveStatus: BoardSaveStatus;
+  persistPatch: (patch: BoardPatch) => Promise<void>;
 }
 
 /**
  * Editor owns nodes/pan/zoom for the mounted board lifetime.
- * Workspace owns Board[]; this hook copies board fields on mount and debounce-writes patches back.
+ * Workspace owns durable Board; this hook copies board fields on mount and debounce-writes patches back.
  */
-export function useBoardState(board: Board, onChange: (patch: BoardPatch) => void): BoardState {
+export function useBoardState(
+  board: Board,
+  onChange: (patch: BoardPatch) => void | Promise<void>,
+): BoardState {
   const [nodes, setNodes] = React.useState<BrainstormNode[]>(Array.isArray(board.nodes) ? board.nodes : []);
   const nodesRef = React.useRef<BrainstormNode[]>(nodes);
   const [pan, setPan] = React.useState<Point>(board.pan || { x: 120, y: 100 });
@@ -36,9 +43,11 @@ export function useBoardState(board: Board, onChange: (patch: BoardPatch) => voi
   const [sizes, setSizes] = React.useState<NodeSizes>({});
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [autoEditId, setAutoEditId] = React.useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = React.useState<BoardSaveStatus>('saved');
   const persistRef = React.useRef({ nodes, pan, zoom });
   const onChangeRef = React.useRef(onChange);
   onChangeRef.current = onChange;
+  const persistGeneration = React.useRef(0);
 
   const mutate = (updater: (nodes: BrainstormNode[]) => BrainstormNode[]) => {
     const next = updater(nodesRef.current);
@@ -72,10 +81,21 @@ export function useBoardState(board: Board, onChange: (patch: BoardPatch) => voi
     zoomRef.current = zoom;
   }, [zoom]);
 
-  const persist = React.useCallback(() => {
+  const persistPatch = React.useCallback(async (patch: BoardPatch) => {
+    const generation = ++persistGeneration.current;
+    setSaveStatus('saving');
+    try {
+      await onChangeRef.current(patch);
+      if (generation === persistGeneration.current) setSaveStatus('saved');
+    } catch {
+      if (generation === persistGeneration.current) setSaveStatus('failed');
+    }
+  }, []);
+
+  const persistCanvas = React.useCallback(() => {
     const latest = persistRef.current;
     const root = latest.nodes.find((node) => node.kind === 'idea' && !node.parentId);
-    onChangeRef.current({
+    void persistPatch({
       nodes: latest.nodes,
       pan: latest.pan,
       zoom: latest.zoom,
@@ -83,15 +103,15 @@ export function useBoardState(board: Board, onChange: (patch: BoardPatch) => voi
       rootIdea: root && root.content ? root.content.slice(0, 80) : '',
       updatedAt: Date.now(),
     });
-  }, []);
+  }, [persistPatch]);
 
   React.useEffect(() => {
     persistRef.current = { nodes, pan, zoom };
-    const timer = setTimeout(persist, 220);
+    const timer = setTimeout(persistCanvas, 220);
     return () => clearTimeout(timer);
-  }, [nodes, pan, zoom, persist]);
+  }, [nodes, pan, zoom, persistCanvas]);
 
-  React.useEffect(() => () => persist(), [persist]);
+  React.useEffect(() => () => persistCanvas(), [persistCanvas]);
 
   return {
     nodes,
@@ -110,5 +130,7 @@ export function useBoardState(board: Board, onChange: (patch: BoardPatch) => voi
     setAutoEditId,
     mutate,
     updateNode,
+    saveStatus,
+    persistPatch,
   };
 }

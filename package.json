@@ -46,7 +46,9 @@
   "types": "./lib/host/index.d.ts",
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.0",
-    "@deepseek-ai/dsh-llm": ">=0.1.0"
+    "@deepseek-ai/dsh-llm": ">=0.1.0",
+    "@deepseek-ai/dsh-storage-domain": ">=0.1.0",
+    "zod": ">=4.0.0"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
@@ -54,12 +56,19 @@
     },
     "@deepseek-ai/dsh-llm": {
       "optional": true
+    },
+    "@deepseek-ai/dsh-storage-domain": {
+      "optional": true
+    },
+    "zod": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@base-ui/react": "1.9.0",
     "@deepseek-ai/cordis": "4.0.2",
     "@deepseek-ai/dsh-llm": "0.1.5-rc.1",
+    "@deepseek-ai/dsh-storage-domain": "0.1.5-rc.1",
     "@types/node": "^22.20.5",
     "@types/react": "~18.3.31",
     "@types/react-dom": "~18.3.7",
@@ -68,7 +77,8 @@
     "esbuild": "0.25.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "zod": "^4.6.7"
   },
   "license": "MIT",
   "author": "Andy Zheng",
@@ -96,7 +106,8 @@
     "dev:host": "tsc -p tsconfig.host.json --watch --preserveWatchOutput",
     "dev:client": "node scripts/build-client.mjs --watch",
     "typecheck": "tsc -p tsconfig.host.json --noEmit && tsc -p tsconfig.client.json",
-    "check": "npm run typecheck && node --check lib/client.js",
+    "check": "npm run typecheck && node --check lib/client.js && node scripts/verify-routes.mjs",
+    "verify-routes": "node scripts/verify-routes.mjs",
     "verify-pack": "node scripts/verify-pack.mjs",
     "prepare": "node scripts/ensure-built.mjs",
     "prepack": "npm run build"
