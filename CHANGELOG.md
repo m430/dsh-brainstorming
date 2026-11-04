@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.0.2 - 2026-11-04
+
+### Features
+
+- Interview / diverge toolbar path: deep-dive Q&A clusters on the canvas, then outline confirmation and research.
+- Obsidian-style interview groups with CSS grid card packing, outside title labels, Markdown node bodies, and keyboard-only delete.
+- Board persistence on Host `storageDomain` with authenticated `/api` boards CRUD (replaces browser `localStorage`).
 
 ### Changed
 
@@ -8,7 +14,6 @@
 - Layout: deterministic sibling reflow + column AABB avoidance, reflow on measured height, subtree drag, and a Tidy layout action (no continuous force simulation).
 - Migrated the source tree to TypeScript/TSX; Host emits `lib/host/`, Client ships as `lib/client.js`.
 - Aligned DSH packaging (`exports`, `verify-pack`), split Host/Client modules, replaced Pixi with Canvas 2D, and added `pnpm dev` watch mode.
-- Board persistence moved from browser `localStorage` to Host `storageDomain` (`brainstorm` domain, JSON by default) with authenticated `/api` boards CRUD.
 - Added a Host/Client API path consistency check (`pnpm verify-routes`) to prevent route drift from regressing into opaque 404s.
 
 ## 0.0.1 - 2026-11-04
