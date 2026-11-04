@@ -1,0 +1,83 @@
+{
+  "name": "dsh-brainstorming",
+  "version": "0.0.1",
+  "private": false,
+  "type": "module",
+  "description": "头脑风暴：PixiJS 无限画布、AI 提问/意图分析/调研，适用于 DeepSeek Harness。",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "src/**",
+    "scripts/**",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "docs/**",
+    "AGENTS.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "CHANGELOG.zh.md",
+    "LICENSES/**"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
+    }
+  },
+  "main": "./index.js",
+  "devDependencies": {
+    "@base-ui/react": "1.9.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "esbuild": "0.25.10",
+    "pixi.js": "8.22.0"
+  },
+  "license": "MIT",
+  "author": "Andy Zheng",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/m430/dsh-brainstorming.git"
+  },
+  "homepage": "https://github.com/m430/dsh-brainstorming#readme",
+  "bugs": {
+    "url": "https://github.com/m430/dsh-brainstorming/issues"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "brainstorming",
+    "mind-map",
+    "pixi.js",
+    "ai",
+    "plugin"
+  ],
+  "scripts": {
+    "build": "node scripts/build-client.mjs",
+    "check": "node --check client.js",
+    "prepack": "node scripts/build-client.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "packageManager": "pnpm@11.28.5"
+}
