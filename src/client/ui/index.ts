@@ -3,6 +3,7 @@ export { Input } from './input.js';
 export { Textarea } from './textarea.js';
 export { Badge } from './badge.js';
 export { Spinner } from './spinner.js';
+export { Markdown, renderMarkdown } from './markdown.js';
 export {
   Dialog,
   DialogClose,

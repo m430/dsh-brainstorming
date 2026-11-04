@@ -4,6 +4,9 @@
 
 ### 变更
 
+- 产品主路径改为「深挖访谈 → 确认问题陈述 → 再分叉/调研」；拆分意图支持深挖/速扩双模式；调研结果可评论并二次改写。
+- 交互收敛为双核心：「拆分意图」「确认调研」（均可补上下文）；去掉提问 / 自动 expand / AI 修改 / 加子想法主入口。
+- 布局：确定性兄弟重排 + 列 AABB 避让、测高后重排、子树拖拽、「整理布局」一键 tidy；不做持续力排斥。
 - 源码迁移到 TypeScript/TSX；Host 输出 `lib/host/`，Client 输出 `lib/client.js`。
 - 对齐 DSH 打包契约（`exports`、`verify-pack`），拆分 Host/Client 模块，Canvas 2D 替代 Pixi，并新增 `pnpm dev` 双 watch。
 - 画布持久化从浏览器 `localStorage` 迁到 Host `storageDomain`（`brainstorm` domain，默认 JSON），经鉴权 `/api` boards CRUD 访问。

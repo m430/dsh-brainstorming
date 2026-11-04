@@ -4,16 +4,28 @@
  * Type-only for Host/Client; runtime API paths live in `./api.js`.
  */
 
-export type NodeKind = 'idea' | 'question' | 'outline' | 'result' | 'intent';
+export type NodeKind =
+  | 'idea'
+  | 'question'
+  | 'outline'
+  | 'result'
+  | 'intent'
+  | 'statement'
+  | 'interview';
 
 export type NodeStatus = 'ready' | 'thinking' | 'error';
 
-export type NodeBusy = 'modify' | 'research' | 'outline' | 'intents' | 'questions';
+export type NodeBusy = 'modify' | 'research' | 'outline' | 'intents' | 'questions' | 'clarify' | 'statement';
+
+/** @deprecated 保留给发散路径；主路径已改为工具栏「访谈 / 发散」。 */
+export type ExploreMode = 'deep' | 'quick';
 
 export interface BrainstormOption {
   id: string;
   label: string;
   description: string;
+  /** grill-me：模型推荐的选项。 */
+  recommended?: boolean;
 }
 
 export type NodeRetry =
@@ -42,6 +54,14 @@ export interface BrainstormNode {
   answerMode?: boolean;
   answer?: string;
   answeredAt?: number | null;
+  /** 深挖澄清轮次（1-based）。 */
+  clarifyRound?: number;
+  /** 被澄清的根点子 id。 */
+  clarifyRootId?: string;
+  /** 速扩产生的方向，UI 标「未澄清」。 */
+  quickExpand?: boolean;
+  /** 调研结果评论。 */
+  comments?: string[];
 }
 
 export interface Point {
@@ -92,6 +112,46 @@ export interface QuestionItem {
 export interface IntentItem {
   label: string;
   detail: string;
+  /** 深挖模式：引用用户原话的依据。 */
+  rationale?: string;
+}
+
+export interface ClarifyTurn {
+  question: string;
+  answer: string;
+}
+
+export interface ClarifyRequest {
+  content: string;
+  prompt?: string;
+  context?: string;
+  prior?: ClarifyTurn[];
+  round?: number;
+}
+
+export interface ClarifyResult {
+  done: boolean;
+  question?: string;
+  options?: BrainstormOption[];
+  model: string;
+  elapsedMs?: number;
+}
+
+export interface StatementRequest {
+  content: string;
+  prompt?: string;
+  context?: string;
+  prior: ClarifyTurn[];
+}
+
+export interface StatementResult {
+  title: string;
+  goal: string;
+  users: string;
+  constraints: string[];
+  nonGoals: string[];
+  model: string;
+  elapsedMs?: number;
 }
 
 export interface ExpandRequest {
@@ -114,6 +174,8 @@ export interface OutlineRequest {
 
 export interface OutlineResult {
   title: string;
+  /** Short markdown overview shown above bullet points. */
+  overview: string;
   points: string[];
   model: string;
   elapsedMs?: number;
@@ -152,6 +214,7 @@ export interface IntentsRequest {
   content: string;
   prompt?: string;
   context?: string;
+  mode?: ExploreMode;
 }
 
 export interface IntentsResult {
@@ -188,6 +251,16 @@ export interface ModifyNodeResult {
 
 export type ModifyResult = ModifyQuestionResult | ModifyNodeResult;
 
+export interface TitleRequest {
+  content: string;
+}
+
+export interface TitleResult {
+  title: string;
+  model: string;
+  elapsedMs?: number;
+}
+
 export interface ApiResultMap {
   expand: ExpandResult;
   outline: OutlineResult;
@@ -195,6 +268,9 @@ export interface ApiResultMap {
   questions: QuestionsResult;
   intents: IntentsResult;
   modify: ModifyResult;
+  title: TitleResult;
+  clarify: ClarifyResult;
+  statement: StatementResult;
 }
 
 export type ApiName = keyof ApiResultMap;

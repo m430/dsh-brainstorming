@@ -229,15 +229,32 @@ export function BrainstormWorkspace({ t }: BrainstormWorkspaceProps) {
     }
   };
 
+  const leaveBoard = async (nodeCount: number) => {
+    const current = activeBoard;
+    setActiveBoard(null);
+    if (!current) {
+      void refreshList();
+      return;
+    }
+    if (nodeCount === 0) {
+      try {
+        await deleteBoardApi(current.id);
+        setBoards((previous) => previous.filter((board) => board.id !== current.id));
+      } catch {
+        // Keep list refresh even if cleanup fails.
+      }
+    }
+    void refreshList();
+  };
+
   if (activeBoard) {
     return (
       <BoardEditor
         key={activeBoard.id}
         board={activeBoard}
         t={t}
-        onBack={() => {
-          setActiveBoard(null);
-          void refreshList();
+        onBack={(nodeCount) => {
+          void leaveBoard(nodeCount);
         }}
         onChange={persistPatch}
       />

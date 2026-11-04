@@ -25,15 +25,38 @@ export interface BrainstormModalProps {
 
 export function BrainstormModal({ modal, node, deleteCount, t, onClose, onSubmit, onDelete }: BrainstormModalProps) {
   const [text, setText] = React.useState('');
-  const isModify = modal.type === 'modify';
   const isDelete = modal.type === 'delete';
-  const isIntent = modal.type === 'intents';
+  const isResearch = modal.type === 'research';
+  const isRevise = modal.type === 'revise';
+  const allowEmpty = isResearch;
 
   const submit = () => {
     const value = text.trim();
-    if (!isIntent && value === '') return;
+    if (!allowEmpty && !isRevise && value === '') return;
+    if (isRevise && value === '') return;
     onSubmit(value);
   };
+
+  const title = isResearch
+    ? t('brainstorm.researchTitle')
+    : isRevise
+      ? t('brainstorm.reviseTitle')
+      : t('brainstorm.modalAddTitle');
+  const hint = isResearch
+    ? t('brainstorm.researchHint')
+    : isRevise
+      ? t('brainstorm.reviseHint')
+      : t('brainstorm.modalAddHint');
+  const placeholder = isResearch
+    ? t('brainstorm.researchPlaceholder')
+    : isRevise
+      ? t('brainstorm.revisePlaceholder')
+      : t('brainstorm.modalAddPlaceholder');
+  const confirmLabel = isResearch
+    ? t('brainstorm.researchConfirm')
+    : isRevise
+      ? t('brainstorm.reviseConfirm')
+      : t('brainstorm.confirmAdd');
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -62,32 +85,16 @@ export function BrainstormModal({ modal, node, deleteCount, t, onClose, onSubmit
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>
-                {isModify
-                  ? t('brainstorm.modalModifyTitle')
-                  : isIntent
-                    ? t('brainstorm.intentTitle')
-                    : t('brainstorm.modalAddTitle')}
-              </DialogTitle>
-              <DialogDescription>
-                {isModify
-                  ? t('brainstorm.modalModifyHint')
-                  : isIntent
-                    ? t('brainstorm.intentHint')
-                    : t('brainstorm.modalAddHint')}
-              </DialogDescription>
+              <DialogTitle>{title}</DialogTitle>
+              <DialogDescription>{hint}</DialogDescription>
             </DialogHeader>
-            {(isModify || isIntent) && node ? <p className="bn-modalPreview">{node.content || node.title || ''}</p> : null}
+            {(isResearch || isRevise) && node ? (
+              <p className="bn-modalPreview">{node.content || node.title || ''}</p>
+            ) : null}
             <Textarea
               value={text}
               autoFocus
-              placeholder={
-                isModify
-                  ? t('brainstorm.modalModifyPlaceholder')
-                  : isIntent
-                    ? t('brainstorm.intentPlaceholder')
-                    : t('brainstorm.modalAddPlaceholder')
-              }
+              placeholder={placeholder}
               onChange={(event) => setText(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
@@ -100,12 +107,8 @@ export function BrainstormModal({ modal, node, deleteCount, t, onClose, onSubmit
               <Button variant="outline" onClick={onClose}>
                 {t('brainstorm.cancel')}
               </Button>
-              <Button variant="default" onClick={submit} disabled={!isIntent && text.trim() === ''}>
-                {isModify
-                  ? t('brainstorm.confirmModify')
-                  : isIntent
-                    ? t('brainstorm.intentAnalyze')
-                    : t('brainstorm.confirmAdd')}
+              <Button variant="default" onClick={submit} disabled={!allowEmpty && text.trim() === ''}>
+                {confirmLabel}
               </Button>
             </DialogFooter>
           </>

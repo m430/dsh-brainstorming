@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Interaction narrowed to two core actions — Split intents and Confirm research (both accept optional context); removed Ask, auto-expand, AI edit, and add-child from the primary toolbar.
+- Layout: deterministic sibling reflow + column AABB avoidance, reflow on measured height, subtree drag, and a Tidy layout action (no continuous force simulation).
 - Migrated the source tree to TypeScript/TSX; Host emits `lib/host/`, Client ships as `lib/client.js`.
 - Aligned DSH packaging (`exports`, `verify-pack`), split Host/Client modules, replaced Pixi with Canvas 2D, and added `pnpm dev` watch mode.
 - Board persistence moved from browser `localStorage` to Host `storageDomain` (`brainstorm` domain, JSON by default) with authenticated `/api` boards CRUD.

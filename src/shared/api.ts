@@ -17,6 +17,9 @@ export const API_PATHS = {
   outline: `${API_BASE}/outline`,
   research: `${API_BASE}/research`,
   modify: `${API_BASE}/modify`,
+  title: `${API_BASE}/title`,
+  clarify: `${API_BASE}/clarify`,
+  statement: `${API_BASE}/statement`,
 } as const satisfies Record<ApiName, string>;
 
 export const BOARD_API_PATHS = {

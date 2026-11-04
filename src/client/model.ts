@@ -21,9 +21,25 @@ function asString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-const NODE_KINDS: readonly NodeKind[] = ['idea', 'question', 'outline', 'result', 'intent'];
+const NODE_KINDS: readonly NodeKind[] = [
+  'idea',
+  'question',
+  'outline',
+  'result',
+  'intent',
+  'statement',
+  'interview',
+];
 const NODE_STATUSES: readonly NodeStatus[] = ['ready', 'thinking', 'error'];
-const NODE_BUSY: readonly NodeBusy[] = ['modify', 'research', 'outline', 'intents', 'questions'];
+const NODE_BUSY: readonly NodeBusy[] = [
+  'modify',
+  'research',
+  'outline',
+  'intents',
+  'questions',
+  'clarify',
+  'statement',
+];
 
 export function makeId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -44,14 +60,16 @@ export function formatTime(timestamp: number): string {
 }
 
 export function defaultBoardTitle(): string {
-  try {
-    const now = new Date();
-    const date = new Intl.DateTimeFormat(undefined, { month: '2-digit', day: '2-digit' }).format(now);
-    const time = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(now);
-    return `头脑风暴 ${date} ${time}`;
-  } catch {
-    return '头脑风暴';
-  }
+  return 'Untitled';
+}
+
+/** True when the board still has a placeholder title eligible for AI naming. */
+export function isPlaceholderBoardTitle(title: string): boolean {
+  const value = title.trim();
+  if (value === '') return true;
+  if (value === 'Untitled' || value === '未命名头脑风暴') return true;
+  if (/^头脑风暴\s+\d/u.test(value)) return true;
+  return false;
 }
 
 export function estimateNodeHeight(node: Pick<BrainstormNode, 'content' | 'points' | 'options'>): number {
@@ -81,6 +99,7 @@ function normalizeOptions(value: unknown): BrainstormOption[] {
       id: asString(item.id) || String.fromCharCode(65 + options.length),
       label,
       description: asString(item.description),
+      ...(item.recommended === true ? { recommended: true } : {}),
     });
   }
   return options;
@@ -141,10 +160,14 @@ export function buildPath(nodes: BrainstormNode[], nodeId: string): PathContext 
   const ideaNode = [...chain].reverse().find((node) => node.kind === 'idea');
   const path: PathStep[] = [];
   for (const node of chain) {
-    if (node.kind === 'question' && node.selectedOptionId) {
-      const option = node.options.find((item) => item.id === node.selectedOptionId);
-      path.push({ question: node.content || '', choice: option ? option.label : '' });
-    }
+    if (node.kind !== 'question') continue;
+    const answer = typeof node.answer === 'string' ? node.answer.trim() : '';
+    if (!node.selectedOptionId && answer === '') continue;
+    const option = node.options.find((item) => item.id === node.selectedOptionId);
+    path.push({
+      question: node.content || '',
+      choice: answer || (option ? option.label : ''),
+    });
   }
   return { idea: ideaNode && ideaNode.content ? ideaNode.content : '', path };
 }
@@ -163,12 +186,28 @@ export function buildContextText(nodes: BrainstormNode[], nodeId: string): strin
       const kind =
         node.kind === 'idea'
           ? '点子'
-          : node.kind === 'question'
-            ? '追问'
-            : node.kind === 'outline'
-              ? '调研大纲'
-              : '调研结果';
-      return [kind, node.title || '', node.content || '', Array.isArray(node.points) ? node.points.join('；') : '']
+          : node.kind === 'interview'
+            ? '访谈'
+            : node.kind === 'question'
+              ? '追问'
+              : node.kind === 'intent'
+                ? '意图'
+                : node.kind === 'statement'
+                  ? '问题陈述'
+                  : node.kind === 'outline'
+                    ? '调研大纲'
+                    : '调研结果';
+      const answer =
+        node.kind === 'question' && typeof node.answer === 'string' && node.answer.trim() !== ''
+          ? `回答：${node.answer.trim()}`
+          : '';
+      return [
+        kind,
+        node.title || '',
+        node.content || '',
+        answer,
+        Array.isArray(node.points) ? node.points.join('；') : '',
+      ]
         .filter((part) => part !== '')
         .join('：');
     })

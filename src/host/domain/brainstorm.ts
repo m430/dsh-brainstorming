@@ -12,6 +12,7 @@ const optionSchema = z.object({
   id: z.string(),
   label: z.string(),
   description: z.string(),
+  recommended: z.boolean().optional(),
 });
 
 const retrySchema = z.union([
@@ -22,7 +23,7 @@ const retrySchema = z.union([
 
 const nodeSchema = z.object({
   id: z.string(),
-  kind: z.enum(['idea', 'question', 'outline', 'result', 'intent']),
+  kind: z.enum(['idea', 'question', 'outline', 'result', 'intent', 'statement', 'interview']),
   title: z.string(),
   content: z.string(),
   points: z.array(z.string()),
@@ -30,7 +31,9 @@ const nodeSchema = z.object({
   selectedOptionId: z.string().nullable(),
   confirmed: z.boolean(),
   status: z.enum(['ready', 'thinking', 'error']),
-  busy: z.enum(['modify', 'research', 'outline', 'intents', 'questions']).nullable(),
+  busy: z
+    .enum(['modify', 'research', 'outline', 'intents', 'questions', 'clarify', 'statement'])
+    .nullable(),
   error: z.string().nullable(),
   retry: retrySchema.nullable(),
   parentId: z.string().nullable(),
@@ -41,6 +44,10 @@ const nodeSchema = z.object({
   answerMode: z.boolean().optional(),
   answer: z.string().optional(),
   answeredAt: z.number().finite().nullable().optional(),
+  clarifyRound: z.number().finite().optional(),
+  clarifyRootId: z.string().optional(),
+  quickExpand: z.boolean().optional(),
+  comments: z.array(z.string()).optional(),
 });
 
 export const boardRecordSchema = z.object({

@@ -10,11 +10,14 @@ import { resolveConfig } from './config.js';
 import { brainstormDomain } from './domain/brainstorm.js';
 import { makeRouteHandler } from './http.js';
 import { expandIdea } from './routes/expand.js';
+import { clarifyIntent } from './routes/clarify.js';
 import { analyzeIntents } from './routes/intents.js';
 import { modifyNode } from './routes/modify.js';
 import { outlineIdea } from './routes/outline.js';
 import { askQuestions } from './routes/questions.js';
 import { researchIdea } from './routes/research.js';
+import { buildStatement } from './routes/statement.js';
+import { summarizeTitle } from './routes/title.js';
 import { makeBoardsHandlers } from './routes/boards.js';
 import type { Domain } from '@deepseek-ai/dsh-storage-domain';
 import type { HostContext, RouteRunner } from './types.js';
@@ -41,6 +44,9 @@ export function apply(ctx: HostContext, config?: BrainstormConfig): void {
     { path: API_PATHS.outline, run: outlineIdea },
     { path: API_PATHS.research, run: researchIdea },
     { path: API_PATHS.modify, run: modifyNode },
+    { path: API_PATHS.title, run: summarizeTitle },
+    { path: API_PATHS.clarify, run: clarifyIntent },
+    { path: API_PATHS.statement, run: buildStatement },
   ];
   for (const route of routes) {
     ctx.effect(

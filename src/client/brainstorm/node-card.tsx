@@ -12,23 +12,28 @@ export interface NodeCardProps {
   t: Translate;
   selected: boolean;
   zoom: number;
+  entering?: boolean;
+  locked?: boolean;
   onSelect: (id: string) => void;
   onMove: (id: string, x: number, y: number) => void;
   onMeasure: (id: string, height: number) => void;
   onOption: (nodeId: string, optionId: string) => void;
   onRetry: (nodeId: string) => void;
-  onAsk: (node: BrainstormNode) => void;
-  onAnalyzeIntent: (node: BrainstormNode) => void;
-  onStartOutline: (id: string) => void;
-  onModify: (node: BrainstormNode) => void;
-  onAddIdea: (node: BrainstormNode) => void;
-  onDelete: (node: BrainstormNode) => void;
+  onStartInterview: (node: BrainstormNode) => void;
+  onStartDiverge: (node: BrainstormNode) => void;
+  onStartResearch: (node: BrainstormNode) => void;
   onConfirmOutline: (id: string) => void;
+  onConfirmStatement?: (id: string) => void;
+  onContinueClarify?: (id: string) => void;
+  onAddComment?: (id: string, comment: string) => void;
+  onReviseResult?: (node: BrainstormNode) => void;
   onUpdateNode: (id: string, patch: NodePatch) => void;
   onAnswer: (id: string, answer: string) => void;
   autoEdit: boolean;
   onAutoEditHandled?: () => void;
   onDiscard?: (id: string) => void;
+  /** When true, card is a CSS-grid item (no absolute left/top; drag disabled). */
+  gridItem?: boolean;
 }
 
 export function NodeCard(props: NodeCardProps) {
@@ -37,23 +42,27 @@ export function NodeCard(props: NodeCardProps) {
     t,
     selected,
     zoom,
+    entering,
+    locked = false,
     onSelect,
     onMove,
     onMeasure,
     onOption,
     onRetry,
-    onAsk,
-    onAnalyzeIntent,
-    onStartOutline,
-    onModify,
-    onAddIdea,
-    onDelete,
+    onStartInterview,
+    onStartDiverge,
+    onStartResearch,
     onConfirmOutline,
+    onConfirmStatement,
+    onContinueClarify,
+    onAddComment,
+    onReviseResult,
     onUpdateNode,
     onAnswer,
     autoEdit,
     onAutoEditHandled,
     onDiscard,
+    gridItem = false,
   } = props;
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState('');
@@ -64,6 +73,7 @@ export function NodeCard(props: NodeCardProps) {
     y: node.y,
     zoom,
     editing,
+    locked: locked || gridItem, // grid items stay in CSS grid — no free drag
     onSelect,
     onMove,
   });
@@ -79,10 +89,14 @@ export function NodeCard(props: NodeCardProps) {
   };
 
   React.useEffect(() => {
-    if (!autoEdit) return;
+    if (!autoEdit || locked) return;
     setEditing(true);
     onAutoEditHandled?.();
-  }, [autoEdit, onAutoEditHandled]);
+  }, [autoEdit, locked, onAutoEditHandled]);
+
+  React.useEffect(() => {
+    if (locked && editing) setEditing(false);
+  }, [locked, editing]);
 
   React.useEffect(() => {
     if (!selected && editing) cancelEdit();
@@ -103,34 +117,58 @@ export function NodeCard(props: NodeCardProps) {
     return () => {
       observer?.disconnect();
     };
-  }, [node.id, node.content, node.options.length, node.points.length, editing, onMeasure]);
+  }, [
+    node.id,
+    node.content,
+    node.answer,
+    node.options.length,
+    node.points.length,
+    node.status,
+    editing,
+    onMeasure,
+  ]);
+
+  const width =
+    node.kind === 'interview'
+      ? node.width || undefined
+      : gridItem
+        ? undefined
+        : node.width || 320;
 
   return (
     <article
-      className={`bn-nodeWrap${selected ? ' bn-selected' : ''}${dragging ? ' bn-dragging' : ''}`}
-      style={{ left: node.x, top: node.y, width: node.width || 320 }}
+      className={`bn-nodeWrap${selected ? ' bn-selected' : ''}${dragging ? ' bn-dragging' : ''}${entering ? ' bn-enter' : ''}${locked ? ' bn-locked' : ''}${node.kind === 'interview' ? ' bn-wrap-interview' : ''}${gridItem ? ' bn-gridItem' : ''}`}
+      style={
+        gridItem
+          ? undefined
+          : {
+              left: node.x,
+              top: node.y,
+              ...(width !== undefined ? { width } : { width: 'max-content' }),
+            }
+      }
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onDoubleClick={(event) => {
+        if (locked || node.kind === 'interview') return;
         if (isInsideInteractiveElement(event.target)) return;
         event.stopPropagation();
         setEditing(true);
       }}
       data-node-id={node.id}
+      title={locked ? t('brainstorm.nodeLocked') : undefined}
     >
       <div ref={cardRef} className={`bn-card bn-kind-${node.kind}`}>
-        {selected && !editing ? (
+        {selected && !editing && !locked ? (
           <NodeTools
             node={node}
             t={t}
-            onAsk={onAsk}
-            onAnalyzeIntent={onAnalyzeIntent}
-            onStartOutline={onStartOutline}
-            onModify={onModify}
-            onAddIdea={onAddIdea}
-            onDelete={onDelete}
+            locked={locked}
+            onStartInterview={onStartInterview}
+            onStartDiverge={onStartDiverge}
+            onStartResearch={onStartResearch}
           />
         ) : null}
         <NodeBody
@@ -145,6 +183,10 @@ export function NodeCard(props: NodeCardProps) {
           onAnswer={onAnswer}
           onOption={onOption}
           onConfirmOutline={onConfirmOutline}
+          onConfirmStatement={onConfirmStatement}
+          onContinueClarify={onContinueClarify}
+          onAddComment={onAddComment}
+          onReviseResult={onReviseResult}
         />
         <NodeStatus node={node} t={t} />
         {node.error ? (

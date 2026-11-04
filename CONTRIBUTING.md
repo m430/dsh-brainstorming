@@ -17,7 +17,7 @@ pnpm check
 
 - Keep changes focused and describe the user-facing effect.
 - Run `pnpm build` after changing `src/**`; `pnpm check` includes type checking and bundle syntax validation.
-- Update `docs/UI_STANDARD.md` when adding a new UI component.
+- Update `DESIGN.md` when adding a new UI component.
 - Do not commit `node_modules`, `build`, `lib`, `.env` files, API keys, or board data.
 - Run `pnpm verify-pack` before publishing-related changes.
 - UI copy lives in `locale/ui-zh.json` / `locale/ui-en.json`; update both when adding strings.

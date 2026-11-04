@@ -18,10 +18,11 @@ export function useNodeDrag(args: {
   y: number;
   zoom: number;
   editing: boolean;
+  locked?: boolean;
   onSelect: (id: string) => void;
   onMove: (id: string, x: number, y: number) => void;
 }) {
-  const { nodeId, x, y, zoom, editing, onSelect, onMove } = args;
+  const { nodeId, x, y, zoom, editing, locked = false, onSelect, onMove } = args;
   const [dragging, setDragging] = React.useState(false);
   const drag = React.useRef<DragState | null>(null);
 
@@ -29,12 +30,14 @@ export function useNodeDrag(args: {
     if (editing || event.button !== 0) return;
     if (isInsideInteractiveElement(event.target)) return;
     event.stopPropagation();
+    onSelect(nodeId);
+    if (locked) return;
     if (event.currentTarget.setPointerCapture) event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = { startX: event.clientX, startY: event.clientY, originX: x, originY: y, moved: false };
-    onSelect(nodeId);
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    if (locked) return;
     const state = drag.current;
     if (!state) return;
     const dx = (event.clientX - state.startX) / zoom;

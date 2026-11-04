@@ -6,48 +6,57 @@ import { Button } from '../ui/button.js';
 export interface NodeToolsProps {
   node: BrainstormNode;
   t: Translate;
-  onAsk: (node: BrainstormNode) => void;
-  onAnalyzeIntent: (node: BrainstormNode) => void;
-  onStartOutline: (id: string) => void;
-  onModify: (node: BrainstormNode) => void;
-  onAddIdea: (node: BrainstormNode) => void;
-  onDelete: (node: BrainstormNode) => void;
+  locked?: boolean;
+  onStartInterview: (node: BrainstormNode) => void;
+  onStartDiverge: (node: BrainstormNode) => void;
+  onStartResearch: (node: BrainstormNode) => void;
 }
 
 export function NodeTools({
   node,
   t,
-  onAsk,
-  onAnalyzeIntent,
-  onStartOutline,
-  onModify,
-  onAddIdea,
-  onDelete,
+  locked = false,
+  onStartInterview,
+  onStartDiverge,
+  onStartResearch,
 }: NodeToolsProps) {
+  if (locked) return null;
+  const canExplore = node.kind === 'idea' || node.kind === 'intent' || node.kind === 'statement';
+  const canResearch =
+    node.kind !== 'outline' && node.kind !== 'interview' && node.kind !== 'question';
+  if (!canExplore && !canResearch) return null;
   return (
     <div className="bn-tools" onPointerDown={(event) => event.stopPropagation()}>
-      <Button variant="ghost" size="xs" className="bn-toolButton bn-toolPrimary" onClick={() => onAsk(node)}>
-        {t('brainstorm.ask')}
-      </Button>
-      <Button variant="ghost" size="xs" className="bn-toolButton" onClick={() => onAnalyzeIntent(node)}>
-        {t('brainstorm.analyzeIntent')}
-      </Button>
-      {node.kind !== 'outline' ? (
-        <Button variant="ghost" size="xs" className="bn-toolButton bn-toolPrimary" onClick={() => onStartOutline(node.id)}>
+      {canExplore ? (
+        <>
+          <Button
+            variant="ghost"
+            size="xs"
+            className="bn-toolButton bn-toolPrimary"
+            onClick={() => onStartInterview(node)}
+          >
+            {t('brainstorm.startInterview')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            className="bn-toolButton bn-toolPrimary"
+            onClick={() => onStartDiverge(node)}
+          >
+            {t('brainstorm.startDiverge')}
+          </Button>
+        </>
+      ) : null}
+      {canResearch ? (
+        <Button
+          variant="ghost"
+          size="xs"
+          className="bn-toolButton bn-toolPrimary"
+          onClick={() => onStartResearch(node)}
+        >
           {t('brainstorm.startOutline')}
         </Button>
       ) : null}
-      {node.kind !== 'outline' || !node.confirmed ? (
-        <Button variant="ghost" size="xs" className="bn-toolButton" onClick={() => onModify(node)}>
-          {t('brainstorm.modify')}
-        </Button>
-      ) : null}
-      <Button variant="ghost" size="xs" className="bn-toolButton" onClick={() => onAddIdea(node)}>
-        {t('brainstorm.addChildIdea')}
-      </Button>
-      <Button variant="ghost" size="xs" className="bn-toolButton bn-toolDanger" onClick={() => onDelete(node)}>
-        {t('brainstorm.delete')}
-      </Button>
     </div>
   );
 }
