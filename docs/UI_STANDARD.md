@@ -8,15 +8,15 @@
 
 | 组件 | 文件 | 底层 |
 | --- | --- | --- |
-| `Button` | `button.jsx` | 原生 button + shadcn variants |
-| `Input` | `input.jsx` | 原生 input |
-| `Textarea` | `textarea.jsx` | 原生 textarea |
-| `Dialog` 系列 | `dialog.jsx` | `@base-ui/react/dialog` |
-| `DropdownMenu` 系列 | `dropdown-menu.jsx` | `@base-ui/react/menu` |
-| `Badge` | `badge.jsx` | 原生 span |
-| `Spinner` | `spinner.jsx` | 原生 span |
+| `Button` | `button.tsx` | 原生 button + shadcn variants |
+| `Input` | `input.tsx` | 原生 input |
+| `Textarea` | `textarea.tsx` | 原生 textarea |
+| `Dialog` 系列 | `dialog.tsx` | `@base-ui/react/dialog` |
+| `DropdownMenu` 系列 | `dropdown-menu.tsx` | `@base-ui/react/menu` |
+| `Badge` | `badge.tsx` | 原生 span |
+| `Spinner` | `spinner.tsx` | 原生 span |
 
-统一从 `src/client/ui/index.js` 导入：
+统一从 `src/client/ui/index.ts` 导入：
 
 ```js
 import { Button, Dialog, DialogContent, DropdownMenu } from '../ui/index.js';

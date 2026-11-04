@@ -24,11 +24,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Build client bundle
+      - name: Build host and client bundles
         run: pnpm build
 
-      - name: Check bundle syntax
+      - name: Typecheck and check bundle syntax
         run: pnpm check
 
-      - name: Verify package contents
-        run: npm pack --dry-run
+      - name: Verify package contents and DSH exports
+        run: pnpm verify-pack

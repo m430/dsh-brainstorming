@@ -1,5 +1,12 @@
 # 更新日志
 
+## 未发布
+
+### 变更
+
+- 源码迁移到 TypeScript/TSX；Host 输出 `lib/host/`，Client 输出 `lib/client.js`。
+- 对齐 DSH 打包契约（`exports`、`verify-pack`），拆分 Host/Client 模块，Canvas 2D 替代 Pixi，并新增 `pnpm dev` 双 watch。
+
 ## 0.0.1 - 2026-11-04
 
 ### 新功能

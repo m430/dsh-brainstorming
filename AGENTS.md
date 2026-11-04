@@ -6,4 +6,5 @@
 - 弹窗用 `Dialog`，菜单用 `DropdownMenu`，按钮用 `Button`，输入用 `Input` / `Textarea`。
 - 新组件先按 shadcn Base UI 结构加入 `src/client/ui/`，再登记到 `docs/UI_STANDARD.md`。
 - 颜色只使用 `--dsw-alias-*` 主题 token。
-- 修改 `src/client/**` 后执行 `node scripts/build-client.mjs`。
+- 修改 `src/**` 后执行 `pnpm check && pnpm build`。
+- 本地热更新：运行 `pnpm dev`（Host tsc watch + Client esbuild watch）。

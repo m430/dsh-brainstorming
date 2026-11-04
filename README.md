@@ -8,12 +8,12 @@ DeepSeek Harness Web UI 的 AI 头脑风暴插件：在无限画布上从一个�
 
 ## 功能
 
-- **无限画布**：PixiJS 点阵背景，支持平移、缩放、节点拖拽和自动保存
+- **无限画布**：Canvas 2D 点阵背景与连线，支持平移、缩放、节点拖拽和自动保存
 - **AI 提问**：分析当前节点，生成 3–5 个能推进思考的高质量问题；问题节点可以直接输入回答
 - **分析意图**：从当前节点提炼多个不同意图，并分别生成子节点
 - **调研流程**：选择方向 → 生成可编辑调研大纲 → 确认后生成调研结果
 - **节点编辑**：双击节点编辑内容；选中后按 `Delete` / `Backspace` 删除
-- **历史画布**：每个画布独立保存，可新建、打开、删除
+- **历史画布**：每个画布独立保存在浏览器 `localStorage`（数据 owner = browser）
 - **统一 UI**：shadcn 风格组件 + Base UI 原语，详见 [`docs/UI_STANDARD.md`](docs/UI_STANDARD.md)
 
 ## 环境要求
@@ -89,23 +89,59 @@ pnpm build
 
 ```bash
 pnpm install --ignore-scripts
+pnpm typecheck
 pnpm build
 pnpm check
 ```
 
-修改 `src/client/**` 后必须重新构建 `client.js`。`pixi.js` 与 Base UI 组件打包进 `client.js`，React / ReactDOM 由 Harness Client 模块表提供。
+源码使用 TypeScript/TSX。`src/host/**` 由 `tsc` 编译到 `lib/host/`，`src/client/**` 由 esbuild 打包成 `lib/client.js`；提交前请运行 `pnpm check`。发布包只包含 `lib/` 等构建产物，不包含 `src/`。从 Git / 本地 path 安装时会跑 `prepare` 构建；也可用 `pnpm build` 手动生成。
+
+Base UI 组件打包进 `lib/client.js`，React / ReactDOM 由 Harness Client 模块表提供。
+
+画布数据目前由浏览器 `localStorage` 拥有（数据 owner = browser）；Host 只提供 AI 分析 API，不持久化 board。UI 文案单源在 `locale/ui-zh.json` / `locale/ui-en.json`，插件 meta 在 `locale/zh.json` / `locale/en.json`。
+
+### 本地热更新
+
+开发时先以本地目录安装插件，让 profile 使用 `link:`（Plugin Manager 选择本地目录即可），然后运行：
+
+```bash
+pnpm dev
+```
+
+它会同时启动：
+
+- Host：`tsc -p tsconfig.host.json --watch`
+- Client：`node scripts/build-client.mjs --watch`（esbuild watch）
+
+Client UI 由 DSH 的 `@deepseek-ai/dsh-client-hmr` 自动热替换：它会轮询插件 bundle，检测到 `client.js` 重建后替换运行中的插件，不需要刷新页面。会话、工作区和连接状态保留，插件内部 React state 会重置。
+
+Host 侧热更新需要在当前 profile 的 `cordis.patch.yml` 中启用 `hmr` 行（默认可能是 disabled）：
+
+```yaml
+- id: hmr
+  disabled: false
+  config:
+    root: ["/Users/zhengmin/Projects/DBB/infra/dsh-plugins/dsh-brainstorming"]
+```
+
+保存后 Host 插件会重载；框架级依赖、`package.json` 等变化仍可能需要重启。只改 Client UI 时不需要这一步。
 
 ### 项目结构
 
 ```text
-index.js                     Host 入口
-src/host/index.js            Host：提示词、模型调用、/api 路由
-src/client/index.jsx         Client 入口：样式、locale、slot 注册
-src/client/app.jsx           工作区根组件
+src/host/index.ts            Host：提示词、模型调用、/api 路由
+src/client/index.tsx         Client 入口：样式、locale、slot 注册
+src/client/app.tsx           工作区根组件
 src/client/ui/               shadcn 风格组件库
 src/client/brainstorm/       画布、节点、历史画布、弹窗
+src/shared/                  Host/Client 共享类型与 API 路径
+locale/ui-*.json             Client UI 文案（单源）
+locale/{zh,en}.json          插件 meta
 scripts/build-client.mjs     esbuild 构建脚本
-client.js                    构建产物
+scripts/dev.mjs              Host/Client 双 watch 开发脚本
+scripts/verify-pack.mjs      发布包与 exports 断言
+lib/host/                    Host 构建产物
+lib/client.js                Client 构建产物（__ModuleLoader__ factory）
 ```
 
 ### API

@@ -3,29 +3,30 @@
   "version": "0.0.1",
   "private": false,
   "type": "module",
-  "description": "头脑风暴：PixiJS 无限画布、AI 提问/意图分析/调研，适用于 DeepSeek Harness。",
+  "description": "头脑风暴：无限画布、AI 提问/意图分析/调研，适用于 DeepSeek Harness。",
   "exports": {
-    ".": "./index.js",
-    "./client": "./client.js",
+    ".": {
+      "types": "./lib/host/index.d.ts",
+      "default": "./lib/host/index.js"
+    },
+    "./client": "./lib/client.js",
     "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg"
+    "./icon": "./icon.svg",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
   },
   "files": [
-    "index.js",
-    "client.js",
-    "src/**",
-    "scripts/**",
+    "lib/**",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
-    "docs/**",
-    "AGENTS.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
     "SECURITY.md",
     "CHANGELOG.md",
     "CHANGELOG.zh.md",
-    "LICENSES/**"
+    "LICENSES/**",
+    "README.md"
   ],
   "dsh": {
     "bundle": {
@@ -41,13 +42,33 @@
       ]
     }
   },
-  "main": "./index.js",
+  "main": "./lib/host/index.js",
+  "types": "./lib/host/index.d.ts",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.0",
+    "@deepseek-ai/dsh-llm": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@base-ui/react": "1.9.0",
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-llm": "0.1.5-rc.1",
+    "@types/node": "^22.20.5",
+    "@types/react": "~18.3.31",
+    "@types/react-dom": "~18.3.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "esbuild": "0.25.10",
-    "pixi.js": "8.22.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.9.3"
   },
   "license": "MIT",
   "author": "Andy Zheng",
@@ -64,20 +85,28 @@
     "dsh",
     "brainstorming",
     "mind-map",
-    "pixi.js",
     "ai",
     "plugin"
   ],
   "scripts": {
-    "build": "node scripts/build-client.mjs",
-    "check": "node --check client.js",
-    "prepack": "node scripts/build-client.mjs"
+    "build": "tsc -p tsconfig.host.json && node scripts/build-client.mjs",
+    "build:host": "tsc -p tsconfig.host.json",
+    "build:client": "node scripts/build-client.mjs",
+    "dev": "node scripts/dev.mjs",
+    "dev:host": "tsc -p tsconfig.host.json --watch --preserveWatchOutput",
+    "dev:client": "node scripts/build-client.mjs --watch",
+    "typecheck": "tsc -p tsconfig.host.json --noEmit && tsc -p tsconfig.client.json",
+    "check": "npm run typecheck && node --check lib/client.js",
+    "verify-pack": "node scripts/verify-pack.mjs",
+    "prepare": "node scripts/ensure-built.mjs",
+    "prepack": "npm run build"
   },
   "publishConfig": {
     "access": "public"
   },
   "engines": {
-    "node": ">=20.11"
+    "node": ">=20.11",
+    "dsh": ">=0.1.0-0"
   },
   "packageManager": "pnpm@11.28.5"
 }
