@@ -12,3 +12,6 @@ pnpm-debug.log*
 lib/
 # Legacy root client bundle (now emitted as lib/client.js)
 /client.js
+# Local tooling / caches — never ship
+.cursor/
+.pnpm-store/
