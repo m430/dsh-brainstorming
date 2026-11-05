@@ -25,6 +25,7 @@ import {
 } from '../ui/dropdown-menu.js';
 import { defaultBoardTitle, formatTime, makeId } from '../model.js';
 import { BoardEditor } from './board-editor.js';
+import { UpdateHint } from './update-hint.js';
 
 interface BoardCardProps {
   board: BoardSummary;
@@ -265,7 +266,10 @@ export function BrainstormWorkspace({ t }: BrainstormWorkspaceProps) {
     <section className="bn-workspace" aria-label={t('brainstorm.boardListTitle')}>
       <div className="bn-listTopbar">
         <div className="bn-listTitle">
-          <h1>{t('brainstorm.boardListTitle')}</h1>
+          <div className="bn-listTitleRow">
+            <h1>{t('brainstorm.boardListTitle')}</h1>
+            <UpdateHint t={t} />
+          </div>
           <p>{t('brainstorm.boardListSubtitle')}</p>
         </div>
         <div className="bn-listActions">

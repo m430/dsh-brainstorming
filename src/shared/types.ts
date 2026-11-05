@@ -284,3 +284,27 @@ export type TranslateParams = Record<string, string | number>;
 export type Translate = (key: string, params?: TranslateParams) => string;
 
 export type TranslateDict = Record<string, string>;
+
+export type UpdateInstallKind = 'registry' | 'local' | 'unknown';
+
+/** Client-safe update status (Host omits profileDir). */
+export interface UpdateStatus {
+  packageName: string;
+  enabled: boolean;
+  kind: UpdateInstallKind;
+  current: string | null;
+  latest: string | null;
+  available: boolean;
+  upgrading: boolean;
+  checkedAt: number | null;
+  error: string | null;
+  hotReload: boolean;
+}
+
+export interface UpdateApplyResult {
+  ok: boolean;
+  current: string | null;
+  target: string | null;
+  message: string;
+  needsRestart: boolean;
+}

@@ -36,3 +36,7 @@ import { Button, Dialog, DialogContent, DropdownMenu } from '../ui/index.js';
 ## 例外
 
 `NodeCard`、`BoardCard`、画布本身属于领域组件，可以组合上述 UI 组件并保留业务样式；但交互控件仍必须来自组件库。
+
+## 画布列表 · 插件更新入口
+
+有 npm 新版本时，在列表页标题行（`.bn-listTitleRow`）用 `Button`（`ghost` / `xs`）+ `Badge` 展示「有新版本」；确认与结果用现有 `Dialog`。不要在侧栏入口或编辑器顶栏重复挂更新提示。

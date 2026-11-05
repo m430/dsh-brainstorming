@@ -8,13 +8,15 @@
  * halves still speak the same paths.
  */
 
-import { API_PATHS, BOARD_API_PATHS } from '../lib/shared/api.js';
+import { API_PATHS, BOARD_API_PATHS, UPDATE_API_PATHS } from '../lib/shared/api.js';
 import { apply } from '../lib/host/index.js';
 
 const registered = [];
+const disposers = [];
 const ctx = {
   effect(run) {
     const dispose = run();
+    if (typeof dispose === 'function') disposers.push(dispose);
     return typeof dispose === 'function' ? dispose : undefined;
   },
   connection: {
@@ -31,12 +33,19 @@ const ctx = {
   get() {
     return undefined;
   },
-  logger: { warn() {} },
+  logger: { warn() {}, info() {} },
 };
 
-apply(ctx, {});
+// Disable background registry polling so this script exits cleanly.
+apply(ctx, { updateCheck: { enabled: false } });
 
-const expected = [...new Set([...Object.values(API_PATHS), ...Object.values(BOARD_API_PATHS)])];
+const expected = [
+  ...new Set([
+    ...Object.values(API_PATHS),
+    ...Object.values(BOARD_API_PATHS),
+    ...Object.values(UPDATE_API_PATHS),
+  ]),
+];
 const missing = expected.filter((path) => !registered.some((item) => item.path === path));
 const extra = registered
   .map((item) => item.path)
@@ -47,6 +56,10 @@ if (missing.length > 0 || extra.length > 0) {
   if (missing.length > 0) console.error('[verify-routes] missing Host routes:', missing);
   if (extra.length > 0) console.error('[verify-routes] unexpected Host routes:', extra);
   process.exit(1);
+}
+
+for (const dispose of disposers.reverse()) {
+  await dispose();
 }
 
 console.log(`[verify-routes] ok — ${registered.length} routes match src/shared/api.ts`);

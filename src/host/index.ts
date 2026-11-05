@@ -2,9 +2,10 @@
  * 头脑风暴插件 · Host 端。
  *
  * 职责：注册 AI 分析接口与 boards CRUD；模型调用、提示词与解析见同目录子模块。
+ * 另：静默检测 npm 新版本，经 update API 供 Client 一键升级（仅 registry 安装）。
  */
 
-import { BOARD_API_PATHS, API_PATHS } from '../shared/api.js';
+import { BOARD_API_PATHS, API_PATHS, UPDATE_API_PATHS } from '../shared/api.js';
 import type { BrainstormConfig } from './config.js';
 import { resolveConfig } from './config.js';
 import { brainstormDomain } from './domain/brainstorm.js';
@@ -19,6 +20,8 @@ import { researchIdea } from './routes/research.js';
 import { buildStatement } from './routes/statement.js';
 import { summarizeTitle } from './routes/title.js';
 import { makeBoardsHandlers } from './routes/boards.js';
+import { makeUpdateHandlers } from './routes/update.js';
+import { UpdateService } from './update/service.js';
 import type { Domain } from '@deepseek-ai/dsh-storage-domain';
 import type { HostContext, RouteRunner } from './types.js';
 import type { BrainstormDomain } from './domain/brainstorm.js';
@@ -137,5 +140,44 @@ export function apply(ctx: HostContext, config?: BrainstormConfig): void {
         fetch: handlers.remove,
       }),
     `dsh-brainstorming: ${BOARD_API_PATHS.delete}`,
+  );
+
+  let updateService: UpdateService | null = null;
+  const updateHandlers = makeUpdateHandlers(() => updateService);
+
+  ctx.effect(() => {
+    const service = new UpdateService({
+      moduleUrl: import.meta.url,
+      config: resolved.updateCheck,
+      logger: ctx.logger,
+    });
+    updateService = service;
+    service.start();
+    return () => {
+      service.stop();
+      if (updateService === service) updateService = null;
+    };
+  }, 'dsh-brainstorming: update check');
+
+  ctx.effect(
+    () =>
+      ctx.connection.fetch.register({
+        path: UPDATE_API_PATHS.status,
+        methods: ['GET'],
+        requestBody: 'buffered',
+        fetch: updateHandlers.status,
+      }),
+    `dsh-brainstorming: ${UPDATE_API_PATHS.status}`,
+  );
+
+  ctx.effect(
+    () =>
+      ctx.connection.fetch.register({
+        path: UPDATE_API_PATHS.apply,
+        methods: ['POST'],
+        requestBody: 'buffered',
+        fetch: updateHandlers.apply,
+      }),
+    `dsh-brainstorming: ${UPDATE_API_PATHS.apply}`,
   );
 }

@@ -30,4 +30,10 @@ export const BOARD_API_PATHS = {
   delete: `${API_BASE}/boards/delete`,
 } as const;
 
+/** Plugin self-update (Host checks npm; Client prompts on board list). */
+export const UPDATE_API_PATHS = {
+  status: `${API_BASE}/update/status`,
+  apply: `${API_BASE}/update/apply`,
+} as const;
+
 export const API_ROUTE_NAMES = Object.keys(API_PATHS) as ApiName[];

@@ -1,8 +1,20 @@
+import {
+  resolveUpdateCheckConfig,
+  type UpdateCheckConfig,
+} from './update/service.js';
+
 export interface BrainstormConfig {
   provider?: string;
   model?: string;
   timeoutMs?: number;
   maxOutputTokens?: number;
+  updateCheck?: {
+    enabled?: boolean;
+    intervalMs?: number;
+    initialDelayMs?: number;
+    registry?: string;
+    fetchTimeoutMs?: number;
+  };
 }
 
 export interface ResolvedConfig {
@@ -10,6 +22,7 @@ export interface ResolvedConfig {
   model?: string;
   timeoutMs: number;
   maxOutputTokens: number;
+  updateCheck: UpdateCheckConfig;
 }
 
 export function resolveConfig(config: BrainstormConfig | undefined): ResolvedConfig {
@@ -27,5 +40,6 @@ export function resolveConfig(config: BrainstormConfig | undefined): ResolvedCon
     maxOutputTokens: typeof value.maxOutputTokens === 'number' && Number.isInteger(value.maxOutputTokens)
       ? value.maxOutputTokens
       : 1800,
+    updateCheck: resolveUpdateCheckConfig(value.updateCheck),
   };
 }

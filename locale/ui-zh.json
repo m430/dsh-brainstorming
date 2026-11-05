@@ -114,5 +114,17 @@
   "brainstorm.legacyBoard": "历史画布",
   "brainstorm.saveFailed": "保存失败",
   "brainstorm.canvasError": "画布加载失败",
-  "brainstorm.canvasErrorHint": "请刷新页面重试；如果问题持续存在，请检查控制台。"
+  "brainstorm.canvasErrorHint": "请刷新页面重试；如果问题持续存在，请检查控制台。",
+  "brainstorm.updateAvailable": "有新版本 v{version}",
+  "brainstorm.updateConfirmTitle": "升级头脑风暴插件",
+  "brainstorm.updateConfirmHint": "将从 {current} 升级到 {latest}。升级会在当前 profile 中执行 pnpm 安装。",
+  "brainstorm.updateConfirm": "立即升级",
+  "brainstorm.updateApplying": "正在升级…",
+  "brainstorm.updateDoneTitle": "升级完成",
+  "brainstorm.updateDoneRestart": "新版本已安装。请重启 DeepSeek Harness 后生效（仅刷新页面不够）。",
+  "brainstorm.updateDoneReload": "新版本已安装。检测到热替换环境，刷新页面即可加载。",
+  "brainstorm.updateReload": "刷新页面",
+  "brainstorm.updateGotIt": "知道了",
+  "brainstorm.updateFailedTitle": "升级失败",
+  "brainstorm.updateFailed": "升级失败，请稍后重试或手动在插件管理中安装新版本。"
 }

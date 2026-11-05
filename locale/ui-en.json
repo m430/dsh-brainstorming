@@ -114,5 +114,17 @@
   "brainstorm.legacyBoard": "Legacy board",
   "brainstorm.saveFailed": "Save failed",
   "brainstorm.canvasError": "Canvas failed to load",
-  "brainstorm.canvasErrorHint": "Refresh the page and try again. If it persists, check the console."
+  "brainstorm.canvasErrorHint": "Refresh the page and try again. If it persists, check the console.",
+  "brainstorm.updateAvailable": "Update v{version}",
+  "brainstorm.updateConfirmTitle": "Upgrade Brainstorm",
+  "brainstorm.updateConfirmHint": "Upgrade from {current} to {latest}. This runs pnpm in your current profile.",
+  "brainstorm.updateConfirm": "Upgrade now",
+  "brainstorm.updateApplying": "Upgrading…",
+  "brainstorm.updateDoneTitle": "Upgrade complete",
+  "brainstorm.updateDoneRestart": "The new version is installed. Restart DeepSeek Harness for it to take effect (a page refresh is not enough).",
+  "brainstorm.updateDoneReload": "The new version is installed. Hot-reload is available — refresh the page to load it.",
+  "brainstorm.updateReload": "Refresh page",
+  "brainstorm.updateGotIt": "Got it",
+  "brainstorm.updateFailedTitle": "Upgrade failed",
+  "brainstorm.updateFailed": "Upgrade failed. Try again later or install the new version from Plugin Manager."
 }
