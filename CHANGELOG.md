@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.0.5 - 2026-11-05
+
+### Features
+
+- Group-level interview: select a free-group title to interview with all member cards as context; members no longer show interview / diverge / research tools.
+- Create-group AABB preview only when ≥2 ungrouped free nodes are selected; multi-select delete is keyboard-only.
+
+### Changed
+
+- Card toolbar is interview / diverge only (no confirm-research); group tools center on the group frame.
+
+### Fixes
+
+- Spoke edge from free group to interview group; interview Thinking title no longer clipped by a fixed 96px width.
+
 ## 0.0.4 - 2026-11-05
 
 ### Features
