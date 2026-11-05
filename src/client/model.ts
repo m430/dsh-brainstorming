@@ -10,6 +10,8 @@ import type {
 } from '../shared/types.js';
 
 export const NODE_WIDTH = 320;
+/** Wider card for long-form outline / research result nodes. */
+export const DOC_NODE_WIDTH = 480;
 export const H_GAP = 120;
 export const V_GAP = 28;
 
@@ -115,6 +117,13 @@ function normalizeRetry(value: unknown): NodeRetry | null {
   }
   if (value.type === 'research' && typeof value.outlineId === 'string') {
     return { type: 'research', outlineId: value.outlineId };
+  }
+  if (
+    value.type === 'clarify' &&
+    typeof value.rootId === 'string' &&
+    typeof value.interviewId === 'string'
+  ) {
+    return { type: 'clarify', rootId: value.rootId, interviewId: value.interviewId };
   }
   return null;
 }

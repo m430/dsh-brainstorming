@@ -1,5 +1,5 @@
 import type { BrainstormNode, Point } from '../../shared/types.js';
-import { H_GAP, NODE_WIDTH, V_GAP, estimateNodeHeight } from '../model.js';
+import { DOC_NODE_WIDTH, H_GAP, NODE_WIDTH, V_GAP, estimateNodeHeight } from '../model.js';
 import { collectSubtreeIds } from './tree.js';
 import type { NodeSizes } from './types.js';
 
@@ -20,6 +20,13 @@ export function interviewContentOrigin(interview: BrainstormNode): { x: number; 
 }
 
 export function nodeWidth(node: BrainstormNode): number {
+  if (node.kind === 'outline' || node.kind === 'result') {
+    // Legacy boards stored NODE_WIDTH (320); treat that as unset and use the doc width.
+    if (typeof node.width === 'number' && Number.isFinite(node.width) && node.width !== NODE_WIDTH) {
+      return node.width;
+    }
+    return DOC_NODE_WIDTH;
+  }
   if (typeof node.width === 'number' && Number.isFinite(node.width)) return node.width;
   if (node.kind === 'question' && node.clarifyRootId) return INTERVIEW_CARD_WIDTH;
   return NODE_WIDTH;
@@ -424,4 +431,4 @@ export function translateSubtree(
   return nodes.map((node) => (ids.has(node.id) ? { ...node, x: node.x + dx, y: node.y + dy } : node));
 }
 
-export { NODE_WIDTH, H_GAP, V_GAP, estimateNodeHeight };
+export { DOC_NODE_WIDTH, NODE_WIDTH, H_GAP, V_GAP, estimateNodeHeight };

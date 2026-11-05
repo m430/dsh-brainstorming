@@ -47,10 +47,15 @@ export async function clarifyIntent(
     prompt === '' ? '' : `用户补充要求：${prompt}`,
     context === '' ? '' : `上下文：${context}`,
     `当前轮次：${round}/${MAX_ROUNDS}`,
-    '已有澄清问答：',
+    '已有澄清问答（已定决策，下一问必须建立在此之上）：',
     priorText,
     '',
-    '请给出下一轮澄清追问，或在足够清晰时设 done=true。只输出 JSON。',
+    '任务：',
+    '1) 从点子与 prior 推断设计决策树；标出已定节点与仍未挑战的隐含假设。',
+    '2) 只在 frontier 上选 1 个杠杆最高的决策来问；依赖未齐的问题不要提前问。',
+    '3) 问题要引用用户原话或具体假设；给出带 recommended 的互斥选项。',
+    '4) 若 frontier 已空或只剩不可烤问题，输出 {"done":true}。',
+    '只输出 JSON。',
   ]
     .filter((line) => line !== '')
     .join('\n');

@@ -176,6 +176,102 @@ function MarkdownPoints({ points }: { points: string[] }) {
   );
 }
 
+function InlineEditArea({
+  node,
+  t,
+  draft,
+  setDraft,
+  setEditing,
+  onCancelEdit,
+  onUpdateNode,
+}: {
+  node: BrainstormNode;
+  t: Translate;
+  draft: string;
+  setDraft: (draft: string) => void;
+  setEditing: (editing: boolean) => void;
+  onCancelEdit: () => void;
+  onUpdateNode: (id: string, patch: NodePatch) => void;
+}) {
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const skipBlurSaveRef = React.useRef(false);
+
+  const resize = React.useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(el.scrollHeight, 24)}px`;
+  }, []);
+
+  React.useLayoutEffect(() => {
+    resize();
+  }, [draft, resize]);
+
+  const save = () => {
+    const value = draft.trim();
+    if (value === '') {
+      onCancelEdit();
+      return;
+    }
+    if (editsPoints(node)) {
+      const points = value
+        .split(/\r?\n/u)
+        .map((item) => item.trim().replace(/^[-*·]\s*/u, ''))
+        .filter((item) => item !== '')
+        .slice(0, 12);
+      const minimum = node.kind === 'outline' ? 2 : 1;
+      if (points.length < minimum) {
+        onUpdateNode(node.id, {
+          error: node.kind === 'outline'
+            ? t('brainstorm.outlineNeedTwoPoints')
+            : t('brainstorm.pointsNeedOne'),
+        });
+        return;
+      }
+      if (node.kind === 'outline') {
+        onUpdateNode(node.id, { points, confirmed: false, error: null });
+      } else {
+        onUpdateNode(node.id, { points, content: node.kind === 'statement' ? points[0] || node.content : '', error: null });
+      }
+    } else {
+      onUpdateNode(node.id, { content: value, error: null });
+    }
+    setEditing(false);
+  };
+
+  return (
+    <div className="bn-editArea" onPointerDown={(event) => event.stopPropagation()}>
+      <Textarea
+        ref={textareaRef}
+        className="bn-editTextarea"
+        value={draft}
+        placeholder={node.freeNode ? t('brainstorm.freeNodePlaceholder') : undefined}
+        autoFocus
+        rows={1}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => {
+          if (skipBlurSaveRef.current) {
+            skipBlurSaveRef.current = false;
+            return;
+          }
+          save();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+            event.preventDefault();
+            save();
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            skipBlurSaveRef.current = true;
+            onCancelEdit();
+          }
+        }}
+      />
+    </div>
+  );
+}
+
 export interface NodeBodyProps {
   node: BrainstormNode;
   t: Translate;
@@ -192,6 +288,22 @@ export interface NodeBodyProps {
   onContinueClarify?: (id: string) => void;
   onAddComment?: (id: string, comment: string) => void;
   onReviseResult?: (node: BrainstormNode) => void;
+  onRetry?: (nodeId: string) => void;
+}
+
+function WarningIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M8 1.6 14.4 13.2H1.6L8 1.6Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <path d="M8 6.2v3.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="8" cy="11.2" r="0.7" fill="currentColor" />
+    </svg>
+  );
 }
 
 export function NodeBody(props: NodeBodyProps) {
@@ -210,69 +322,25 @@ export function NodeBody(props: NodeBodyProps) {
     onContinueClarify,
     onAddComment,
     onReviseResult,
+    onRetry,
   } = props;
   if (editing) {
-    const save = () => {
-      const value = draft.trim();
-      if (value === '') return;
-      if (editsPoints(node)) {
-        const points = value
-          .split(/\r?\n/u)
-          .map((item) => item.trim().replace(/^[-*·]\s*/u, ''))
-          .filter((item) => item !== '')
-          .slice(0, 12);
-        const minimum = node.kind === 'outline' ? 2 : 1;
-        if (points.length < minimum) {
-          onUpdateNode(node.id, {
-            error: node.kind === 'outline'
-              ? t('brainstorm.outlineNeedTwoPoints')
-              : t('brainstorm.pointsNeedOne'),
-          });
-          return;
-        }
-        if (node.kind === 'outline') {
-          onUpdateNode(node.id, { points, confirmed: false, error: null });
-        } else {
-          onUpdateNode(node.id, { points, content: node.kind === 'statement' ? points[0] || node.content : '', error: null });
-        }
-      } else {
-        onUpdateNode(node.id, { content: value, error: null });
-      }
-      setEditing(false);
-    };
     return (
-      <div className="bn-editArea" onPointerDown={(event) => event.stopPropagation()}>
-        <Textarea
-          className="bn-editTextarea"
-          value={draft}
-          placeholder={node.freeNode ? t('brainstorm.freeNodePlaceholder') : undefined}
-          autoFocus
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-              event.preventDefault();
-              save();
-            }
-            if (event.key === 'Escape') {
-              event.preventDefault();
-              onCancelEdit();
-            }
-          }}
-        />
-        <div className="bn-editActions">
-          <Button variant="outline" size="sm" onClick={onCancelEdit}>
-            {t('brainstorm.cancel')}
-          </Button>
-          <Button variant="default" size="sm" onClick={save} disabled={draft.trim() === ''}>
-            {t('brainstorm.save')}
-          </Button>
-        </div>
-      </div>
+      <InlineEditArea
+        node={node}
+        t={t}
+        draft={draft}
+        setDraft={setDraft}
+        setEditing={setEditing}
+        onCancelEdit={onCancelEdit}
+        onUpdateNode={onUpdateNode}
+      />
     );
   }
 
   if (node.kind === 'interview') {
     const thinking = node.status === 'thinking';
+    const failed = Boolean(node.error) && !thinking;
     return (
       <div className="bn-groupTitle" aria-busy={thinking || undefined}>
         <span className="bn-groupTitleText">{t('brainstorm.interviewTitle')}</span>
@@ -280,6 +348,28 @@ export function NodeBody(props: NodeBodyProps) {
           <span className="bn-groupThinking">
             <Spinner />
             {t('brainstorm.interviewThinking')}
+          </span>
+        ) : null}
+        {failed ? (
+          <span className="bn-groupWarn">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="bn-groupWarnButton"
+              aria-label={`${t('brainstorm.error')}：${node.error || ''}。${t('brainstorm.retry')}`}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRetry?.(node.id);
+              }}
+            >
+              <WarningIcon />
+            </Button>
+            <span className="bn-groupWarnTip" role="tooltip">
+              {node.error}
+              <span className="bn-groupWarnTipAction">{t('brainstorm.retry')}</span>
+            </span>
           </span>
         ) : null}
       </div>
@@ -429,14 +519,24 @@ export function NodeBody(props: NodeBodyProps) {
     );
   }
 
+  if (node.kind === 'result') {
+    return (
+      <div>
+        {node.title ? <p className="bn-outlineTitle">{node.title}</p> : null}
+        {node.content ? <Markdown source={node.content} /> : null}
+        <MarkdownPoints points={node.points || []} />
+        {onAddComment && onReviseResult ? (
+          <ResultComments node={node} t={t} onAddComment={onAddComment} onRevise={onReviseResult} />
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div>
       {node.quickExpand ? <Badge className="bn-quickBadge">{t('brainstorm.quickExpandBadge')}</Badge> : null}
       {node.content ? <Markdown source={node.content} /> : null}
       <MarkdownPoints points={node.points || []} />
-      {node.kind === 'result' && onAddComment && onReviseResult ? (
-        <ResultComments node={node} t={t} onAddComment={onAddComment} onRevise={onReviseResult} />
-      ) : null}
     </div>
   );
 }

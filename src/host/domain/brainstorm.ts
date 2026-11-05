@@ -19,6 +19,7 @@ const retrySchema = z.union([
   z.object({ type: z.literal('expand'), ideaId: z.string() }),
   z.object({ type: z.literal('outline'), targetNodeId: z.string() }),
   z.object({ type: z.literal('research'), outlineId: z.string() }),
+  z.object({ type: z.literal('clarify'), rootId: z.string(), interviewId: z.string() }),
 ]);
 
 const nodeSchema = z.object({

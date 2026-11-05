@@ -31,7 +31,8 @@ export interface BrainstormOption {
 export type NodeRetry =
   | { type: 'expand'; ideaId: string }
   | { type: 'outline'; targetNodeId: string }
-  | { type: 'research'; outlineId: string };
+  | { type: 'research'; outlineId: string }
+  | { type: 'clarify'; rootId: string; interviewId: string };
 
 export interface BrainstormNode {
   id: string;

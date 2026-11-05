@@ -15,6 +15,7 @@ import type {
 import { postApi } from '../api.js';
 import { buildContextText, buildPath, makeId } from '../model.js';
 import {
+  DOC_NODE_WIDTH,
   INTERVIEW_CARD_WIDTH,
   NODE_WIDTH,
   V_GAP,
@@ -49,6 +50,47 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException
     ? error.name === 'AbortError'
     : error instanceof Error && /abort/iu.test(error.name + error.message);
+}
+
+const CLARIFY_MAX_ATTEMPTS = 3;
+const CLARIFY_RETRY_DELAY_MS = 700;
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+async function withRetries<T>(
+  run: () => Promise<T>,
+  attempts: number,
+  signal: AbortSignal,
+  delayMs: number,
+): Promise<T> {
+  let lastError: unknown;
+  for (let index = 0; index < attempts; index += 1) {
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+    try {
+      return await run();
+    } catch (error) {
+      if (isAbortError(error)) throw error;
+      lastError = error;
+      if (index < attempts - 1) await sleep(delayMs * (index + 1), signal);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 function mergeContext(parts: Array<string | null | undefined>): string {
@@ -217,7 +259,7 @@ export function useAiActions(deps: AiActionsDeps) {
               parentId: targetNodeId,
               x: position.x,
               y: position.y,
-              width: NODE_WIDTH,
+              width: DOC_NODE_WIDTH,
             }),
           ],
           sizes,
@@ -289,7 +331,7 @@ export function useAiActions(deps: AiActionsDeps) {
               parentId: outlineId,
               x: position.x,
               y: position.y,
-              width: NODE_WIDTH,
+              width: DOC_NODE_WIDTH,
             }),
           ],
           sizes,
@@ -415,14 +457,26 @@ export function useAiActions(deps: AiActionsDeps) {
     if (!root || !interview || interview.kind !== 'interview') return;
     const prior = collectClarifyPrior(nodesRef.current, rootId);
     const round = prior.length + 1;
-    updateNode(interviewId, { status: 'thinking', busy: 'clarify', error: null, content: '' });
+    updateNode(interviewId, {
+      status: 'thinking',
+      busy: 'clarify',
+      error: null,
+      content: '',
+      retry: null,
+    });
     const signal = beginRequest(`clarify:${rootId}:${round}`);
     try {
       const context = buildContextText(nodesRef.current, rootId);
-      const result: ClarifyResult = await postApi(
-        'clarify',
-        { content: nodeText(root), prompt, context, prior, round },
+      const result: ClarifyResult = await withRetries(
+        () =>
+          postApi(
+            'clarify',
+            { content: nodeText(root), prompt, context, prior, round },
+            signal,
+          ),
+        CLARIFY_MAX_ATTEMPTS,
         signal,
+        CLARIFY_RETRY_DELAY_MS,
       );
       if (result.done) {
         updateNode(interviewId, {
@@ -431,6 +485,7 @@ export function useAiActions(deps: AiActionsDeps) {
           confirmed: true,
           content: '',
           error: null,
+          retry: null,
         });
         // Outline hangs off the interview group (to its right).
         await startOutline(interviewId, prompt);
@@ -450,6 +505,7 @@ export function useAiActions(deps: AiActionsDeps) {
                     busy: null,
                     content: '',
                     error: null,
+                    retry: null,
                   }
                 : node,
             ),
@@ -477,7 +533,12 @@ export function useAiActions(deps: AiActionsDeps) {
     } catch (error) {
       if (isAbortError(error)) return;
       const message = error instanceof Error ? error.message : String(error);
-      updateNode(interviewId, { status: 'ready', busy: null, error: message });
+      updateNode(interviewId, {
+        status: 'ready',
+        busy: null,
+        error: message,
+        retry: { type: 'clarify', rootId, interviewId },
+      });
     }
   };
 
@@ -664,6 +725,9 @@ export function useAiActions(deps: AiActionsDeps) {
     if (node.retry.type === 'expand') void runExpand(node.retry.ideaId, nodeId);
     else if (node.retry.type === 'outline') void startOutline(node.retry.targetNodeId, '', nodeId);
     else if (node.retry.type === 'research') void runResearch(node.retry.outlineId, nodeId);
+    else if (node.retry.type === 'clarify') {
+      void runInterviewRound(node.retry.rootId, node.retry.interviewId);
+    }
   };
 
   const addIdea = (text: string, parentId: string | null) => {

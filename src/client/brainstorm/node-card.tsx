@@ -2,6 +2,7 @@ import React from 'react';
 
 import type { BrainstormNode, Translate } from '../../shared/types.js';
 import { Button } from '../ui/button.js';
+import { nodeWidth } from './layout.js';
 import { NodeBody, NodeStatus, editsPoints } from './node-body.js';
 import { NodeTools } from './node-tools.js';
 import type { NodePatch } from './types.js';
@@ -133,7 +134,7 @@ export function NodeCard(props: NodeCardProps) {
       ? node.width || undefined
       : gridItem
         ? undefined
-        : node.width || 320;
+        : nodeWidth(node);
 
   return (
     <article
@@ -187,9 +188,10 @@ export function NodeCard(props: NodeCardProps) {
           onContinueClarify={onContinueClarify}
           onAddComment={onAddComment}
           onReviseResult={onReviseResult}
+          onRetry={onRetry}
         />
         <NodeStatus node={node} t={t} />
-        {node.error ? (
+        {node.error && node.kind !== 'interview' ? (
           <div className="bn-error" role="alert">
             <span>{t('brainstorm.error')}：{node.error}</span>
             {node.retry ? (
