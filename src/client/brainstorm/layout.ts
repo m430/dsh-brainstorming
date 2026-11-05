@@ -74,6 +74,26 @@ export function sizeOf(node: BrainstormNode, sizes: NodeSizes): { width: number;
   };
 }
 
+/**
+ * Eligible for freeform “create group”: ungrouped content cards only.
+ * Interview/group chrome, clarify questions, and anything with a parent are out.
+ */
+export function isFreeGroupCandidate(node: BrainstormNode): boolean {
+  if (node.kind === 'interview' || node.kind === 'group') return false;
+  if (node.kind === 'question' && node.clarifyRootId) return false;
+  if (node.parentId != null) return false;
+  return true;
+}
+
+/** Drop freeform groups that no longer have any members. */
+export function pruneEmptyGroups(nodes: BrainstormNode[]): BrainstormNode[] {
+  const memberParentIds = new Set<string>();
+  for (const node of nodes) {
+    if (node.parentId) memberParentIds.add(node.parentId);
+  }
+  return nodes.filter((node) => node.kind !== 'group' || memberParentIds.has(node.id));
+}
+
 /** World-space AABB of the given node ids (skips interview/group chrome-only nodes). */
 export function nodesAABB(
   nodes: BrainstormNode[],
@@ -155,6 +175,9 @@ export function isInterviewBranchLocked(nodes: BrainstormNode[], nodeId: string)
   if (node.id === thinkingInterview.id) return true;
   if (node.id === thinkingInterview.parentId) return true;
   if (node.parentId === thinkingInterview.id) return true;
+  // Interview rooted on a free group: lock the group title and all members.
+  const source = thinkingInterview.parentId ? byId.get(thinkingInterview.parentId) : undefined;
+  if (source?.kind === 'group' && node.parentId === source.id) return true;
   return false;
 }
 

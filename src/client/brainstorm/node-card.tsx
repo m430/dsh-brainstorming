@@ -10,10 +10,14 @@ import { isInsideInteractiveElement, useNodeDrag } from './use-node-drag.js';
 
 export interface NodeCardProps {
   node: BrainstormNode;
+  /** Board nodes — used to detect free-group membership for tools. */
+  nodes: BrainstormNode[];
   t: Translate;
   selected: boolean;
   /** Show floating tools only for the sole selected card. */
   showTools?: boolean;
+  /** Horizontal tools anchor from node left (group: frame center). */
+  toolsAnchorLeft?: number;
   zoom: number;
   entering?: boolean;
   locked?: boolean;
@@ -25,7 +29,6 @@ export interface NodeCardProps {
   onRetry: (nodeId: string) => void;
   onStartInterview: (node: BrainstormNode) => void;
   onStartDiverge: (node: BrainstormNode) => void;
-  onStartResearch: (node: BrainstormNode) => void;
   onConfirmOutline: (id: string) => void;
   onConfirmStatement?: (id: string) => void;
   onContinueClarify?: (id: string) => void;
@@ -43,9 +46,11 @@ export interface NodeCardProps {
 export function NodeCard(props: NodeCardProps) {
   const {
     node,
+    nodes,
     t,
     selected,
     showTools = false,
+    toolsAnchorLeft,
     zoom,
     entering,
     locked = false,
@@ -57,7 +62,6 @@ export function NodeCard(props: NodeCardProps) {
     onRetry,
     onStartInterview,
     onStartDiverge,
-    onStartResearch,
     onConfirmOutline,
     onConfirmStatement,
     onContinueClarify,
@@ -141,12 +145,15 @@ export function NodeCard(props: NodeCardProps) {
     onMeasure,
   ]);
 
+  // Interview title row grows with Thinking / warn — never clamp to stored 96px width.
   const width =
-    node.kind === 'interview' || node.kind === 'group'
-      ? node.width || undefined
-      : gridItem
-        ? undefined
-        : nodeWidth(node);
+    node.kind === 'interview'
+      ? undefined
+      : node.kind === 'group'
+        ? node.width || undefined
+        : gridItem
+          ? undefined
+          : nodeWidth(node);
   return (
     <article
       className={`bn-nodeWrap${selected ? ' bn-selected' : ''}${dragging ? ' bn-dragging' : ''}${entering ? ' bn-enter' : ''}${locked ? ' bn-locked' : ''}${node.kind === 'interview' ? ' bn-wrap-interview' : ''}${node.kind === 'group' ? ' bn-wrap-group' : ''}${gridItem ? ' bn-gridItem' : ''}`}
@@ -176,11 +183,12 @@ export function NodeCard(props: NodeCardProps) {
         {showTools && selected && !editing && !locked ? (
           <NodeTools
             node={node}
+            nodes={nodes}
             t={t}
             locked={locked}
+            anchorLeft={toolsAnchorLeft}
             onStartInterview={onStartInterview}
             onStartDiverge={onStartDiverge}
-            onStartResearch={onStartResearch}
           />
         ) : null}
         <NodeBody

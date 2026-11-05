@@ -161,11 +161,12 @@
 .bn-selectionTools{position:absolute;left:50%;top:-10px;transform:translate(-50%,-100%);display:flex;align-items:center;gap:4px;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l1);border-radius:999px;padding:5px 6px;box-shadow:0 4px 16px color-mix(in srgb,var(--dsw-alias-label-primary) 14%,transparent);pointer-events:auto;white-space:nowrap}
 .bn-selectionToolBtn.ui-btn{height:30px;min-width:30px;padding:0 10px;gap:6px;border-radius:999px;font-size:12px;font-weight:500;line-height:18px}
 .bn-selectionToolBtn.ui-btn svg{flex:none}
-.bn-groupTitle{display:flex;align-items:center;gap:6px;margin:0;min-height:20px;max-height:30px;white-space:nowrap;padding:0;box-sizing:border-box}
-.bn-groupTitleText{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:500;line-height:20px}
+.bn-wrap-interview{width:max-content;overflow:visible}
+.bn-groupTitle{display:flex;align-items:center;gap:6px;margin:0;min-height:20px;max-height:30px;white-space:nowrap;padding:0;box-sizing:border-box;overflow:visible}
+.bn-groupTitleText{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:500;line-height:20px;flex:none}
 /* Chip fill matches .bn-groupFrame; transparent border reserves edit-state size (no jitter). */
-.bn-groupTitleChip{box-sizing:border-box;display:inline-block;max-width:240px;height:24px;overflow:hidden;text-overflow:ellipsis;padding:1px 7px;border:1px solid transparent;border-radius:6px;background:color-mix(in srgb,var(--dsw-alias-label-secondary) 6%,transparent);line-height:20px}
-.bn-groupThinking{display:inline-flex;align-items:center;gap:5px;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;opacity:.85}
+.bn-groupTitleChip{box-sizing:border-box;display:inline-block;max-width:240px;height:24px;overflow:hidden;text-overflow:ellipsis;padding:1px 7px;border:1px solid transparent;border-radius:6px;background:color-mix(in srgb,var(--dsw-alias-label-secondary) 6%,transparent);line-height:20px;flex:none}
+.bn-groupThinking{display:inline-flex;align-items:center;gap:5px;flex:none;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;opacity:.85}
 .bn-groupWarn{position:relative;display:inline-flex;align-items:center}
 .bn-groupWarnButton.ui-btn{width:20px;height:20px;padding:0;border-radius:6px;color:var(--dsw-alias-state-error-primary)}
 .bn-groupWarnButton.ui-btn:hover{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 12%,transparent);color:var(--dsw-alias-state-error-primary)}

@@ -17,10 +17,13 @@ import { InterviewGrid } from './interview-grid.js';
 import {
   GROUP_LABEL_HEIGHT,
   GROUP_PAD,
+  freeGroupBounds,
   freeGroupTitlePosition,
+  isFreeGroupCandidate,
   isInterviewBranchLocked,
   makeNode,
   nodesAABB,
+  pruneEmptyGroups,
   reflowChildren,
   translateSubtree,
 } from './layout.js';
@@ -179,7 +182,9 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
   const deleteNode = (nodeId: string) => {
     if (isInterviewBranchLocked(nodesRef.current, nodeId)) return;
     const ids = collectSubtreeIds(nodesRef.current, nodeId);
-    mutate((previous) => previous.filter((node) => !ids.has(node.id)));
+    mutate((previous) =>
+      pruneEmptyGroups(previous.filter((node) => !ids.has(node.id))),
+    );
     setSelectedIds((previous) => previous.filter((id) => !ids.has(id)));
     setModal(null);
   };
@@ -193,7 +198,9 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
       for (const child of collectSubtreeIds(nodesRef.current, id)) remove.add(child);
     }
     if (remove.size === 0) return;
-    mutate((previous) => previous.filter((node) => !remove.has(node.id)));
+    mutate((previous) =>
+      pruneEmptyGroups(previous.filter((node) => !remove.has(node.id))),
+    );
     setSelectedIds((previous) => previous.filter((id) => !remove.has(id)));
     setModal(null);
   };
@@ -201,16 +208,16 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
   const groupableIds = React.useMemo(() => {
     return selectedIds.filter((id) => {
       const node = nodes.find((item) => item.id === id);
-      if (!node) return false;
-      if (node.kind === 'interview' || node.kind === 'group') return false;
-      if (node.kind === 'question' && node.clarifyRootId) return false;
-      return true;
+      return Boolean(node && isFreeGroupCandidate(node));
     });
   }, [selectedIds, nodes]);
 
-  const selectionBounds = React.useMemo(() => {
-    if (selectedIds.length < 2) return null;
-    const inner = nodesAABB(nodes, sizes, selectedIds);
+  const canCreateGroup = groupableIds.length >= 2;
+
+  // Group-preview AABB + create toolbar only when create-group is valid.
+  const groupPreviewBounds = React.useMemo(() => {
+    if (!canCreateGroup) return null;
+    const inner = nodesAABB(nodes, sizes, groupableIds);
     if (!inner) return null;
     return {
       x: inner.x - GROUP_PAD,
@@ -218,7 +225,7 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
       w: inner.w + GROUP_PAD * 2,
       h: inner.h + GROUP_PAD * 2,
     };
-  }, [selectedIds, nodes, sizes]);
+  }, [canCreateGroup, groupableIds, nodes, sizes]);
 
   const createGroupFromSelection = () => {
     if (groupableIds.length < 2) return;
@@ -384,13 +391,21 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
       node.kind === 'group'
         ? { ...node, ...freeGroupTitlePosition(nodes, sizes, node) }
         : node;
+    // Center tools on the group frame (title node is only as wide as the chip).
+    let toolsAnchorLeft: number | undefined;
+    if (node.kind === 'group') {
+      const bounds = freeGroupBounds(nodes, sizes, node.id);
+      if (bounds) toolsAnchorLeft = bounds.w / 2 - GROUP_PAD;
+    }
     return (
     <NodeCard
       key={node.id}
       node={displayNode}
+      nodes={nodes}
       t={t}
       selected={selectedIdSet.has(node.id)}
       showTools={selectedIds.length === 1 && selectedId === node.id}
+      toolsAnchorLeft={toolsAnchorLeft}
       zoom={zoom}
       entering={Boolean(enteringIds[node.id])}
       locked={isInterviewBranchLocked(nodes, node.id)}
@@ -413,7 +428,6 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
       onRetry={actions.retryNode}
       onStartInterview={(target) => void actions.startInterview(target.id)}
       onStartDiverge={(target) => void actions.startDiverge(target.id)}
-      onStartResearch={(target) => setModal({ type: 'research', nodeId: target.id })}
       onAnswer={(id, answer) => {
         if (isInterviewBranchLocked(nodesRef.current, id)) return;
         const target = nodesRef.current.find((item) => item.id === id);
@@ -519,15 +533,13 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
             {nodes
               .filter((node) => !gridQuestionIds.has(node.id))
               .map((node) => renderNodeCard(node, false))}
-            {selectionBounds ? (
+            {groupPreviewBounds ? (
               <SelectionOverlay
-                x={selectionBounds.x}
-                y={selectionBounds.y}
-                w={selectionBounds.w}
-                h={selectionBounds.h}
+                x={groupPreviewBounds.x}
+                y={groupPreviewBounds.y}
+                w={groupPreviewBounds.w}
+                h={groupPreviewBounds.h}
                 t={t}
-                canGroup={groupableIds.length >= 2}
-                onDelete={deleteSelected}
                 onCreateGroup={createGroupFromSelection}
               />
             ) : null}

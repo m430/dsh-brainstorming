@@ -1,7 +1,7 @@
 import React from 'react';
 
 import type { BrainstormNode, Point } from '../../shared/types.js';
-import { interviewGroupBounds, sizeOf } from './layout.js';
+import { freeGroupBounds, interviewGroupBounds, sizeOf } from './layout.js';
 import type { NodeSizes } from './types.js';
 
 export interface BoardBackdropProps {
@@ -130,8 +130,8 @@ export function BoardBackdrop({ nodes, sizes, pan, zoom, enteringIds = {} }: Boa
       if (!parent) continue;
       // Questions live inside the interview group — no per-card edges.
       if (parent.kind === 'interview' && node.kind === 'question') continue;
-      // Freeform group members stay spatially grouped; no spoke edges.
-      if (parent.kind === 'group') continue;
+      // Freeform group members stay spatially grouped; spoke only to child interview.
+      if (parent.kind === 'group' && node.kind !== 'interview') continue;
 
       const p = sizeOf(parent, sizes);
       const c = sizeOf(node, sizes);
@@ -140,6 +140,14 @@ export function BoardBackdrop({ nodes, sizes, pan, zoom, enteringIds = {} }: Boa
       // From interview group, attach to the group chrome's right edge.
       if (parent.kind === 'interview') {
         const bounds = interviewGroupBounds(nodes, sizes, parent.id);
+        if (bounds) {
+          x1 = bounds.x + bounds.w;
+          y1 = bounds.y + Math.min(bounds.h / 2, 160);
+        }
+      }
+      // From free group → interview: attach to the free-group frame's right edge.
+      if (parent.kind === 'group' && node.kind === 'interview') {
+        const bounds = freeGroupBounds(nodes, sizes, parent.id);
         if (bounds) {
           x1 = bounds.x + bounds.w;
           y1 = bounds.y + Math.min(bounds.h / 2, 160);

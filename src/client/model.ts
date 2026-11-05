@@ -182,6 +182,23 @@ export function buildPath(nodes: BrainstormNode[], nodeId: string): PathContext 
   return { idea: ideaNode && ideaNode.content ? ideaNode.content : '', path };
 }
 
+/** Seed text for interviewing a free group: title + all member bodies. */
+export function groupInterviewSeed(nodes: BrainstormNode[], groupId: string): string {
+  const group = nodes.find((node) => node.id === groupId && node.kind === 'group');
+  const members = nodes.filter((node) => node.parentId === groupId);
+  const parts: string[] = [];
+  const title = (group?.title || '').trim();
+  if (title !== '') parts.push(`分组：${title}`);
+  for (const member of members) {
+    const body = [member.content, ...(Array.isArray(member.points) ? member.points : [])]
+      .filter((part) => typeof part === 'string' && part.trim() !== '')
+      .join('\n')
+      .trim();
+    if (body !== '') parts.push(body);
+  }
+  return parts.join('\n\n').slice(0, 6000);
+}
+
 export function buildContextText(nodes: BrainstormNode[], nodeId: string): string {
   const byId = new Map<string, BrainstormNode>(nodes.map((node) => [node.id, node]));
   let current = byId.get(nodeId);
@@ -190,39 +207,42 @@ export function buildContextText(nodes: BrainstormNode[], nodeId: string): strin
     chain.unshift(current);
     current = current.parentId ? byId.get(current.parentId) : undefined;
   }
-  return chain
-    .slice(0, -1)
-    .map((node) => {
-      const kind =
-        node.kind === 'idea'
-          ? '点子'
-          : node.kind === 'interview'
-            ? '访谈'
-            : node.kind === 'group'
-              ? '分组'
-              : node.kind === 'question'
-                ? '追问'
-                : node.kind === 'intent'
-                  ? '意图'
-                  : node.kind === 'statement'
-                    ? '问题陈述'
-                    : node.kind === 'outline'
-                      ? '调研大纲'
-                      : '调研结果';
-      const answer =
-        node.kind === 'question' && typeof node.answer === 'string' && node.answer.trim() !== ''
-          ? `回答：${node.answer.trim()}`
-          : '';
-      return [
-        kind,
-        node.title || '',
-        node.content || '',
-        answer,
-        Array.isArray(node.points) ? node.points.join('；') : '',
-      ]
-        .filter((part) => part !== '')
-        .join('：');
-    })
-    .join('\n')
-    .slice(0, 6000);
+  const lines = chain.slice(0, -1).map((node) => {
+    const kind =
+      node.kind === 'idea'
+        ? '点子'
+        : node.kind === 'interview'
+          ? '访谈'
+          : node.kind === 'group'
+            ? '分组'
+            : node.kind === 'question'
+              ? '追问'
+              : node.kind === 'intent'
+                ? '意图'
+                : node.kind === 'statement'
+                  ? '问题陈述'
+                  : node.kind === 'outline'
+                    ? '调研大纲'
+                    : '调研结果';
+    const answer =
+      node.kind === 'question' && typeof node.answer === 'string' && node.answer.trim() !== ''
+        ? `回答：${node.answer.trim()}`
+        : '';
+    return [
+      kind,
+      node.title || '',
+      node.content || '',
+      answer,
+      Array.isArray(node.points) ? node.points.join('；') : '',
+    ]
+      .filter((part) => part !== '')
+      .join('：');
+  });
+  const target = byId.get(nodeId);
+  // Free-group root has no ancestors; fold member summary into context.
+  if (target?.kind === 'group') {
+    const seed = groupInterviewSeed(nodes, nodeId);
+    if (seed !== '') lines.push(seed);
+  }
+  return lines.join('\n').slice(0, 6000);
 }

@@ -9,23 +9,7 @@ export interface SelectionOverlayProps {
   w: number;
   h: number;
   t: Translate;
-  canGroup: boolean;
-  onDelete: () => void;
   onCreateGroup: () => void;
-}
-
-function TrashIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M3 4.25h10M6.25 4.25V3h3.5v1.25M5.5 6v5.5M8 6v5.5M10.5 6v5.5M4.75 4.25l.5 8.25h5.5l.5-8.25"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
 }
 
 /** Dashed frame + two cards — reads clearly as “group these”. */
@@ -49,17 +33,8 @@ function GroupIcon() {
   );
 }
 
-/** Multi-select AABB + floating shortcut toolbar (Obsidian-style). */
-export function SelectionOverlay({
-  x,
-  y,
-  w,
-  h,
-  t,
-  canGroup,
-  onDelete,
-  onCreateGroup,
-}: SelectionOverlayProps) {
+/** Multi-select group preview + create-group action (delete is keyboard-only). */
+export function SelectionOverlay({ x, y, w, h, t, onCreateGroup }: SelectionOverlayProps) {
   return (
     <div
       className="bn-selectionOverlay"
@@ -72,22 +47,9 @@ export function SelectionOverlay({
           type="button"
           variant="ghost"
           size="sm"
-          className="bn-selectionToolBtn bn-toolDanger"
-          aria-label={t('brainstorm.delete')}
-          title={t('brainstorm.delete')}
-          onClick={onDelete}
-        >
-          <TrashIcon />
-          <span>{t('brainstorm.delete')}</span>
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
           className="bn-selectionToolBtn bn-toolPrimary"
           aria-label={t('brainstorm.createGroup')}
           title={t('brainstorm.createGroup')}
-          disabled={!canGroup}
           onClick={onCreateGroup}
         >
           <GroupIcon />

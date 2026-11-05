@@ -13,7 +13,7 @@ import type {
   Translate,
 } from '../../shared/types.js';
 import { postApi } from '../api.js';
-import { buildContextText, buildPath, makeId } from '../model.js';
+import { buildContextText, buildPath, groupInterviewSeed, H_GAP, makeId } from '../model.js';
 import {
   DOC_NODE_WIDTH,
   INTERVIEW_CARD_WIDTH,
@@ -21,6 +21,7 @@ import {
   V_GAP,
   childPositionOf,
   estimateNodeHeight,
+  freeGroupBounds,
   makeNode,
   nodeText,
   reflowChildren,
@@ -467,11 +468,13 @@ export function useAiActions(deps: AiActionsDeps) {
     const signal = beginRequest(`clarify:${rootId}:${round}`);
     try {
       const context = buildContextText(nodesRef.current, rootId);
+      const content =
+        root.kind === 'group' ? groupInterviewSeed(nodesRef.current, rootId) : nodeText(root);
       const result: ClarifyResult = await withRetries(
         () =>
           postApi(
             'clarify',
-            { content: nodeText(root), prompt, context, prior, round },
+            { content, prompt, context, prior, round },
             signal,
           ),
         CLARIFY_MAX_ATTEMPTS,
@@ -564,30 +567,34 @@ export function useAiActions(deps: AiActionsDeps) {
       }
       return;
     }
-    const position = childPosition(sourceId);
+    let position = childPosition(sourceId);
+    // Place interview to the right of the free-group frame, not the narrow title chip.
+    if (source.kind === 'group') {
+      const bounds = freeGroupBounds(nodesRef.current, sizes, sourceId);
+      if (bounds) {
+        position = { x: bounds.x + bounds.w + H_GAP, y: bounds.y };
+      }
+    }
     const interviewId = makeId();
     markEntering?.([interviewId]);
-    mutate((previous) =>
-      reflowChildren(
-        [
-          ...previous,
-          makeNode({
-            id: interviewId,
-            kind: 'interview',
-            title: t('brainstorm.interviewTitle'),
-            content: '',
-            status: 'thinking',
-            busy: 'clarify',
-            parentId: sourceId,
-            x: position.x,
-            y: position.y,
-            width: 96,
-          }),
-        ],
-        sizes,
-        sourceId,
-      ),
-    );
+    const interviewNode = makeNode({
+      id: interviewId,
+      kind: 'interview',
+      title: t('brainstorm.interviewTitle'),
+      content: '',
+      status: 'thinking',
+      busy: 'clarify',
+      parentId: sourceId,
+      x: position.x,
+      y: position.y,
+      width: 96,
+    });
+    if (source.kind === 'group') {
+      // reflowChildren is a no-op for free groups — keep explicit coords.
+      mutate((previous) => [...previous, interviewNode]);
+    } else {
+      mutate((previous) => reflowChildren([...previous, interviewNode], sizes, sourceId));
+    }
     setSelectedId(interviewId);
     await runInterviewRound(sourceId, interviewId);
   };
