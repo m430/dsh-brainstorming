@@ -1,6 +1,6 @@
 {
   "name": "dsh-brainstorming",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": false,
   "type": "module",
   "description": "头脑风暴：无限画布、AI 提问/意图分析/调研，适用于 DeepSeek Harness。",
