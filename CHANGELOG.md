@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.0.3 - 2026-11-05
+
+### Features
+
+- In-plugin update check: Host polls the npm registry and the board list title shows when a newer version is available; confirming runs `pnpm add` in the current profile.
+
+### Documentation
+
+- README aligned with the interview / diverge / confirm-research flow; config examples use generic provider placeholders and no longer document auto-update or developer setup.
+
 ## 0.0.2 - 2026-11-04
 
 ### Features
