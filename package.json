@@ -111,7 +111,8 @@
     "verify-routes": "node scripts/verify-routes.mjs",
     "verify-pack": "node scripts/verify-pack.mjs",
     "prepare": "node scripts/ensure-built.mjs",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "release": "node scripts/release.mjs"
   },
   "publishConfig": {
     "access": "public"

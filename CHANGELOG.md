@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.0.4 - 2026-11-05
+
+### Features
+
+- Obsidian-style canvas pointer: default select / marquee, hold Space to pan.
+- Freeform groups from multi-select (AABB preview + create group) with chip-style editable titles outside the frame.
+- Interview and free groups share the same frame / title chrome; interview titles stay locked with thinking / retry warning.
+
+### Changed
+
+- Only the first contentful root idea auto-enters interview; later free nodes stay plain.
+- Node layer zoom uses CSS `zoom` (keeps text sharp); long-form outline / result cards use a wider doc width.
+
+### Fixes
+
+- Free-group title no longer overlaps the frame; removed a title-snap layout effect that blanked the board (React #185).
+
 ## 0.0.3 - 2026-11-05
 
 ### Features
