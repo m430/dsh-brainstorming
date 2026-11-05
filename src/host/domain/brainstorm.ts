@@ -24,7 +24,7 @@ const retrySchema = z.union([
 
 const nodeSchema = z.object({
   id: z.string(),
-  kind: z.enum(['idea', 'question', 'outline', 'result', 'intent', 'statement', 'interview']),
+  kind: z.enum(['idea', 'question', 'outline', 'result', 'intent', 'statement', 'interview', 'group']),
   title: z.string(),
   content: z.string(),
   points: z.array(z.string()),

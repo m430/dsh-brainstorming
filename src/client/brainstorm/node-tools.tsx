@@ -21,9 +21,10 @@ export function NodeTools({
   onStartResearch,
 }: NodeToolsProps) {
   if (locked) return null;
+  // Free groups / interview chrome — no toolbar actions on the title row.
+  if (node.kind === 'group' || node.kind === 'interview') return null;
   const canExplore = node.kind === 'idea' || node.kind === 'intent' || node.kind === 'statement';
-  const canResearch =
-    node.kind !== 'outline' && node.kind !== 'interview' && node.kind !== 'question';
+  const canResearch = node.kind !== 'outline' && node.kind !== 'question';
   if (!canExplore && !canResearch) return null;
   return (
     <div className="bn-tools" onPointerDown={(event) => event.stopPropagation()}>

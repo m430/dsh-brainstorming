@@ -19,15 +19,18 @@ export function useNodeDrag(args: {
   zoom: number;
   editing: boolean;
   locked?: boolean;
+  /** When true (Space held), let canvas handle pan — don't drag/select the node. */
+  spaceHeld?: boolean;
   onSelect: (id: string) => void;
   onMove: (id: string, x: number, y: number) => void;
 }) {
-  const { nodeId, x, y, zoom, editing, locked = false, onSelect, onMove } = args;
+  const { nodeId, x, y, zoom, editing, locked = false, spaceHeld = false, onSelect, onMove } = args;
   const [dragging, setDragging] = React.useState(false);
   const drag = React.useRef<DragState | null>(null);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLElement>) => {
     if (editing || event.button !== 0) return;
+    if (spaceHeld) return;
     if (isInsideInteractiveElement(event.target)) return;
     event.stopPropagation();
     onSelect(nodeId);

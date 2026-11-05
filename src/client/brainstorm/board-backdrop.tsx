@@ -130,6 +130,8 @@ export function BoardBackdrop({ nodes, sizes, pan, zoom, enteringIds = {} }: Boa
       if (!parent) continue;
       // Questions live inside the interview group — no per-card edges.
       if (parent.kind === 'interview' && node.kind === 'question') continue;
+      // Freeform group members stay spatially grouped; no spoke edges.
+      if (parent.kind === 'group') continue;
 
       const p = sizeOf(parent, sizes);
       const c = sizeOf(node, sizes);

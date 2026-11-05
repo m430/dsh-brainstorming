@@ -11,7 +11,8 @@ export type NodeKind =
   | 'result'
   | 'intent'
   | 'statement'
-  | 'interview';
+  | 'interview'
+  | 'group';
 
 export type NodeStatus = 'ready' | 'thinking' | 'error';
 

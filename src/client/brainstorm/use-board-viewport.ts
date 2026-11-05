@@ -11,6 +11,48 @@ interface PanDragState {
   panY: number;
 }
 
+interface MarqueeState {
+  originX: number;
+  originY: number;
+  currentX: number;
+  currentY: number;
+}
+
+export interface MarqueeScreenRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.isContentEditable ||
+    Boolean(target.closest?.('input, textarea, [contenteditable="true"]'))
+  );
+}
+
+function rectsIntersect(
+  a: { x: number; y: number; width: number; height: number },
+  b: { x: number; y: number; width: number; height: number },
+): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function screenMarquee(state: MarqueeState): MarqueeScreenRect {
+  const left = Math.min(state.originX, state.currentX);
+  const top = Math.min(state.originY, state.currentY);
+  return {
+    left,
+    top,
+    width: Math.abs(state.currentX - state.originX),
+    height: Math.abs(state.currentY - state.originY),
+  };
+}
+
 export interface BoardViewportArgs {
   canvasRef: React.RefObject<HTMLDivElement | null>;
   nodesRef: React.MutableRefObject<BrainstormNode[]>;
@@ -20,6 +62,7 @@ export interface BoardViewportArgs {
   setPan: React.Dispatch<React.SetStateAction<Point>>;
   setZoom: React.Dispatch<React.SetStateAction<number>>;
   setSelectedId: React.Dispatch<React.SetStateAction<string | null>>;
+  setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 export function useBoardViewport({
@@ -31,10 +74,16 @@ export function useBoardViewport({
   setPan,
   setZoom,
   setSelectedId,
+  setSelectedIds,
 }: BoardViewportArgs) {
   const panDrag = React.useRef<PanDragState | null>(null);
+  const marqueeDrag = React.useRef<MarqueeState | null>(null);
   const sizesRef = React.useRef(sizes);
   sizesRef.current = sizes;
+  const [spaceHeld, setSpaceHeld] = React.useState(false);
+  const [panning, setPanning] = React.useState(false);
+  const [marqueeRect, setMarqueeRect] = React.useState<MarqueeScreenRect | null>(null);
+  const spaceHeldRef = React.useRef(false);
 
   const fitView = React.useCallback(() => {
     const element = canvasRef.current;
@@ -101,34 +150,134 @@ export function useBoardViewport({
     return () => element.removeEventListener('wheel', onWheel);
   }, [canvasRef, setPan, zoomAt]);
 
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' && event.key !== ' ') return;
+      if (event.repeat) return;
+      if (isTypingTarget(event.target)) return;
+      event.preventDefault();
+      spaceHeldRef.current = true;
+      setSpaceHeld(true);
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' && event.key !== ' ') return;
+      spaceHeldRef.current = false;
+      setSpaceHeld(false);
+      if (!panDrag.current) setPanning(false);
+    };
+    const onBlur = () => {
+      spaceHeldRef.current = false;
+      setSpaceHeld(false);
+      setPanning(false);
+    };
+    window.addEventListener('keydown', onKeyDown, { capture: true });
+    window.addEventListener('keyup', onKeyUp, { capture: true });
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, { capture: true });
+      window.removeEventListener('keyup', onKeyUp, { capture: true });
+      window.removeEventListener('blur', onBlur);
+    };
+  }, []);
+
+  const finishMarquee = React.useCallback(
+    (state: MarqueeState) => {
+      const screen = screenMarquee(state);
+      const zoom = zoomRef.current;
+      const pan = panRef.current;
+      const world = {
+        x: (screen.left - pan.x) / zoom,
+        y: (screen.top - pan.y) / zoom,
+        width: screen.width / zoom,
+        height: screen.height / zoom,
+      };
+      if (world.width < 4 / zoom && world.height < 4 / zoom) {
+        setSelectedIds([]);
+        return;
+      }
+      const hits: string[] = [];
+      for (const node of nodesRef.current) {
+        if (node.kind === 'interview' || node.kind === 'group') continue;
+        const size = sizeOf(node, sizesRef.current);
+        if (rectsIntersect(world, { x: node.x, y: node.y, width: size.width, height: size.height })) {
+          hits.push(node.id);
+        }
+      }
+      setSelectedIds(hits);
+    },
+    [nodesRef, panRef, setSelectedIds, zoomRef],
+  );
+
   const onCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
-    if (event.target instanceof Element && event.target.closest('.bn-nodeWrap, .bn-zoom, .bn-empty .ui-btn, .ui-btn')) {
+    if (event.target instanceof Element && event.target.closest('.bn-zoom, .bn-empty .ui-btn, .ui-btn')) {
       return;
     }
+    const onNode = event.target instanceof Element && Boolean(event.target.closest('.bn-nodeWrap'));
+    if (onNode && !spaceHeldRef.current) return;
+
     if (event.currentTarget.setPointerCapture) event.currentTarget.setPointerCapture(event.pointerId);
-    panDrag.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      panX: panRef.current.x,
-      panY: panRef.current.y,
+    const canvasRect = event.currentTarget.getBoundingClientRect();
+    const localX = event.clientX - canvasRect.left;
+    const localY = event.clientY - canvasRect.top;
+
+    if (spaceHeldRef.current) {
+      panDrag.current = {
+        startX: event.clientX,
+        startY: event.clientY,
+        panX: panRef.current.x,
+        panY: panRef.current.y,
+      };
+      setPanning(true);
+      return;
+    }
+
+    marqueeDrag.current = {
+      originX: localX,
+      originY: localY,
+      currentX: localX,
+      currentY: localY,
     };
-    setSelectedId(null);
+    setMarqueeRect({ left: localX, top: localY, width: 0, height: 0 });
   };
 
   const onCanvasPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    const state = panDrag.current;
-    if (!state) return;
-    setPan({ x: state.panX + event.clientX - state.startX, y: state.panY + event.clientY - state.startY });
+    const panState = panDrag.current;
+    if (panState) {
+      setPan({
+        x: panState.panX + event.clientX - panState.startX,
+        y: panState.panY + event.clientY - panState.startY,
+      });
+      return;
+    }
+    const box = marqueeDrag.current;
+    if (!box) return;
+    const canvasRect = event.currentTarget.getBoundingClientRect();
+    box.currentX = event.clientX - canvasRect.left;
+    box.currentY = event.clientY - canvasRect.top;
+    setMarqueeRect(screenMarquee(box));
   };
 
   const onCanvasPointerUp = () => {
-    panDrag.current = null;
+    if (panDrag.current) {
+      panDrag.current = null;
+      setPanning(false);
+      return;
+    }
+    const box = marqueeDrag.current;
+    marqueeDrag.current = null;
+    setMarqueeRect(null);
+    if (box) finishMarquee(box);
   };
+
+  const canvasMode = panning ? 'pan' : spaceHeld ? 'space' : marqueeRect ? 'marquee' : 'default';
 
   return {
     fitView,
     zoomAt,
+    spaceHeld,
+    canvasMode,
+    marqueeRect,
     onCanvasPointerDown,
     onCanvasPointerMove,
     onCanvasPointerUp,

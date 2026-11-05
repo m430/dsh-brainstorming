@@ -12,9 +12,12 @@ export interface NodeCardProps {
   node: BrainstormNode;
   t: Translate;
   selected: boolean;
+  /** Show floating tools only for the sole selected card. */
+  showTools?: boolean;
   zoom: number;
   entering?: boolean;
   locked?: boolean;
+  spaceHeld?: boolean;
   onSelect: (id: string) => void;
   onMove: (id: string, x: number, y: number) => void;
   onMeasure: (id: string, height: number) => void;
@@ -42,9 +45,11 @@ export function NodeCard(props: NodeCardProps) {
     node,
     t,
     selected,
+    showTools = false,
     zoom,
     entering,
     locked = false,
+    spaceHeld = false,
     onSelect,
     onMove,
     onMeasure,
@@ -75,14 +80,21 @@ export function NodeCard(props: NodeCardProps) {
     zoom,
     editing,
     locked: locked || gridItem, // grid items stay in CSS grid — no free drag
+    spaceHeld,
     onSelect,
     onMove,
   });
 
-  React.useEffect(() => {
-    if (!editing) return;
-    setDraft(editsPoints(node) ? (node.points || []).join('\n') : node.content || '');
-  }, [editing, node.id]);
+  const startEdit = React.useCallback(() => {
+    // Set draft before flipping `editing` so the first paint already has the title
+    // (Obsidian select-all needs the default name present on mount).
+    if (node.kind === 'group') {
+      setDraft(node.title || '');
+    } else {
+      setDraft(editsPoints(node) ? (node.points || []).join('\n') : node.content || '');
+    }
+    setEditing(true);
+  }, [node]);
 
   const cancelEdit = () => {
     setEditing(false);
@@ -91,9 +103,9 @@ export function NodeCard(props: NodeCardProps) {
 
   React.useEffect(() => {
     if (!autoEdit || locked) return;
-    setEditing(true);
+    startEdit();
     onAutoEditHandled?.();
-  }, [autoEdit, locked, onAutoEditHandled]);
+  }, [autoEdit, locked, onAutoEditHandled, startEdit]);
 
   React.useEffect(() => {
     if (locked && editing) setEditing(false);
@@ -130,15 +142,14 @@ export function NodeCard(props: NodeCardProps) {
   ]);
 
   const width =
-    node.kind === 'interview'
+    node.kind === 'interview' || node.kind === 'group'
       ? node.width || undefined
       : gridItem
         ? undefined
         : nodeWidth(node);
-
   return (
     <article
-      className={`bn-nodeWrap${selected ? ' bn-selected' : ''}${dragging ? ' bn-dragging' : ''}${entering ? ' bn-enter' : ''}${locked ? ' bn-locked' : ''}${node.kind === 'interview' ? ' bn-wrap-interview' : ''}${gridItem ? ' bn-gridItem' : ''}`}
+      className={`bn-nodeWrap${selected ? ' bn-selected' : ''}${dragging ? ' bn-dragging' : ''}${entering ? ' bn-enter' : ''}${locked ? ' bn-locked' : ''}${node.kind === 'interview' ? ' bn-wrap-interview' : ''}${node.kind === 'group' ? ' bn-wrap-group' : ''}${gridItem ? ' bn-gridItem' : ''}`}
       style={
         gridItem
           ? undefined
@@ -156,13 +167,13 @@ export function NodeCard(props: NodeCardProps) {
         if (locked || node.kind === 'interview') return;
         if (isInsideInteractiveElement(event.target)) return;
         event.stopPropagation();
-        setEditing(true);
+        startEdit();
       }}
       data-node-id={node.id}
       title={locked ? t('brainstorm.nodeLocked') : undefined}
     >
       <div ref={cardRef} className={`bn-card bn-kind-${node.kind}`}>
-        {selected && !editing && !locked ? (
+        {showTools && selected && !editing && !locked ? (
           <NodeTools
             node={node}
             t={t}

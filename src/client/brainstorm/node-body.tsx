@@ -3,6 +3,7 @@ import React from 'react';
 import type { BrainstormNode, Translate } from '../../shared/types.js';
 import { Badge } from '../ui/badge.js';
 import { Button } from '../ui/button.js';
+import { Input } from '../ui/input.js';
 import { Markdown } from '../ui/markdown.js';
 import { Spinner } from '../ui/spinner.js';
 import { Textarea } from '../ui/textarea.js';
@@ -194,7 +195,9 @@ function InlineEditArea({
   onUpdateNode: (id: string, patch: NodePatch) => void;
 }) {
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const titleInputRef = React.useRef<HTMLInputElement | null>(null);
   const skipBlurSaveRef = React.useRef(false);
+  const isGroupTitle = node.kind === 'group';
 
   const resize = React.useCallback(() => {
     const el = textareaRef.current;
@@ -204,11 +207,26 @@ function InlineEditArea({
   }, []);
 
   React.useLayoutEffect(() => {
+    if (isGroupTitle) return;
     resize();
-  }, [draft, resize]);
+  }, [draft, resize, isGroupTitle]);
+
+  // Obsidian-style: focus + select-all so typing replaces the default name.
+  React.useLayoutEffect(() => {
+    if (!isGroupTitle) return;
+    const el = titleInputRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, [isGroupTitle, node.id]);
 
   const save = () => {
     const value = draft.trim();
+    if (isGroupTitle) {
+      onUpdateNode(node.id, { title: value || t('brainstorm.groupTitle'), error: null });
+      setEditing(false);
+      return;
+    }
     if (value === '') {
       onCancelEdit();
       return;
@@ -239,6 +257,42 @@ function InlineEditArea({
     setEditing(false);
   };
 
+  const onBlur = () => {
+    if (skipBlurSaveRef.current) {
+      skipBlurSaveRef.current = false;
+      return;
+    }
+    save();
+  };
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && (isGroupTitle || event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      save();
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      skipBlurSaveRef.current = true;
+      onCancelEdit();
+    }
+  };
+
+  if (isGroupTitle) {
+    return (
+      <div className="bn-editArea bn-editGroupTitleWrap" onPointerDown={(event) => event.stopPropagation()}>
+        <Input
+          ref={titleInputRef}
+          className="bn-editGroupTitle"
+          value={draft}
+          placeholder={t('brainstorm.groupTitle')}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={onBlur}
+          onKeyDown={onKeyDown}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="bn-editArea" onPointerDown={(event) => event.stopPropagation()}>
       <Textarea
@@ -249,24 +303,8 @@ function InlineEditArea({
         autoFocus
         rows={1}
         onChange={(event) => setDraft(event.target.value)}
-        onBlur={() => {
-          if (skipBlurSaveRef.current) {
-            skipBlurSaveRef.current = false;
-            return;
-          }
-          save();
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-            event.preventDefault();
-            save();
-          }
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            skipBlurSaveRef.current = true;
-            onCancelEdit();
-          }
-        }}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
       />
     </div>
   );
@@ -325,7 +363,7 @@ export function NodeBody(props: NodeBodyProps) {
     onRetry,
   } = props;
   if (editing) {
-    return (
+    const editor = (
       <InlineEditArea
         node={node}
         t={t}
@@ -336,6 +374,11 @@ export function NodeBody(props: NodeBodyProps) {
         onUpdateNode={onUpdateNode}
       />
     );
+    // Keep the same title chrome wrapper so edit ↔ view doesn't jump.
+    if (node.kind === 'group') {
+      return <div className="bn-groupTitle">{editor}</div>;
+    }
+    return editor;
   }
 
   if (node.kind === 'interview') {
@@ -372,6 +415,16 @@ export function NodeBody(props: NodeBodyProps) {
             </span>
           </span>
         ) : null}
+      </div>
+    );
+  }
+
+  if (node.kind === 'group') {
+    return (
+      <div className="bn-groupTitle">
+        <span className="bn-groupTitleText bn-groupTitleChip">
+          {node.title || t('brainstorm.groupTitle')}
+        </span>
       </div>
     );
   }

@@ -18,6 +18,8 @@ export interface BoardState {
   measure: (id: string, height: number) => void;
   selectedId: string | null;
   setSelectedId: React.Dispatch<React.SetStateAction<string | null>>;
+  selectedIds: string[];
+  setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
   autoEditId: string | null;
   setAutoEditId: React.Dispatch<React.SetStateAction<string | null>>;
   mutate: (updater: (nodes: BrainstormNode[]) => BrainstormNode[]) => void;
@@ -41,7 +43,17 @@ export function useBoardState(
   const [zoom, setZoom] = React.useState<number>(typeof board.zoom === 'number' ? board.zoom : 1);
   const zoomRef = React.useRef<number>(zoom);
   const [sizes, setSizes] = React.useState<NodeSizes>({});
-  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const selectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1]! : null;
+  const setSelectedId = React.useCallback((value: React.SetStateAction<string | null>) => {
+    setSelectedIds((previous) => {
+      const current = previous.length > 0 ? previous[previous.length - 1]! : null;
+      const next = typeof value === 'function' ? value(current) : value;
+      if (next === null) return [];
+      if (previous.length === 1 && previous[0] === next) return previous;
+      return [next];
+    });
+  }, []);
   const [autoEditId, setAutoEditId] = React.useState<string | null>(null);
   const [saveStatus, setSaveStatus] = React.useState<BoardSaveStatus>('saved');
   const persistRef = React.useRef({ nodes, pan, zoom });
@@ -126,6 +138,8 @@ export function useBoardState(
     measure,
     selectedId,
     setSelectedId,
+    selectedIds,
+    setSelectedIds,
     autoEditId,
     setAutoEditId,
     mutate,

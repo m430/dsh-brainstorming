@@ -39,7 +39,7 @@ export function nodeText(node: BrainstormNode): string {
 }
 
 export function sizeOf(node: BrainstormNode, sizes: NodeSizes): { width: number; height: number } {
-  if (node.kind === 'interview') {
+  if (node.kind === 'interview' || node.kind === 'group') {
     return {
       width: node.width || 96,
       height: sizes[node.id]?.height || INTERVIEW_LABEL_HEIGHT,
@@ -48,6 +48,67 @@ export function sizeOf(node: BrainstormNode, sizes: NodeSizes): { width: number;
   return {
     width: nodeWidth(node),
     height: sizes[node.id]?.height || estimateNodeHeight(node),
+  };
+}
+
+export const GROUP_PAD = INTERVIEW_GROUP_PAD;
+/** Room for title chip (+ edit border) above the frame — taller than plain interview label. */
+export const GROUP_LABEL_HEIGHT = 28;
+
+/** World-space AABB of the given node ids (skips interview/group chrome-only nodes). */
+export function nodesAABB(
+  nodes: BrainstormNode[],
+  sizes: NodeSizes,
+  ids: Iterable<string>,
+): { x: number; y: number; w: number; h: number } | null {
+  const idSet = ids instanceof Set ? ids : new Set(ids);
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let hit = false;
+  for (const node of nodes) {
+    if (!idSet.has(node.id)) continue;
+    if (node.kind === 'interview' || node.kind === 'group') continue;
+    const size = sizeOf(node, sizes);
+    hit = true;
+    minX = Math.min(minX, node.x);
+    minY = Math.min(minY, node.y);
+    maxX = Math.max(maxX, node.x + size.width);
+    maxY = Math.max(maxY, node.y + size.height);
+  }
+  if (!hit) return null;
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
+/** Content frame for a freeform group (members keep absolute world coords). */
+export function freeGroupBounds(
+  nodes: BrainstormNode[],
+  sizes: NodeSizes,
+  groupId: string,
+): { x: number; y: number; w: number; h: number } | null {
+  const members = nodes.filter((node) => node.parentId === groupId);
+  const inner = nodesAABB(
+    members,
+    sizes,
+    members.map((node) => node.id),
+  );
+  if (!inner) {
+    const group = nodes.find((node) => node.id === groupId && node.kind === 'group');
+    if (!group) return null;
+    // Title sits inset like interview (content-left); frame hugs PAD outside it.
+    return {
+      x: group.x - GROUP_PAD,
+      y: group.y + GROUP_LABEL_HEIGHT,
+      w: 200,
+      h: 120,
+    };
+  }
+  return {
+    x: inner.x - GROUP_PAD,
+    y: inner.y - GROUP_PAD,
+    w: inner.w + GROUP_PAD * 2,
+    h: inner.h + GROUP_PAD * 2,
   };
 }
 
@@ -373,6 +434,11 @@ function subtreeSpanHeight(nodes: BrainstormNode[], sizes: NodeSizes, nodeId: st
   const node = nodes.find((item) => item.id === nodeId);
   if (!node) return 0;
   if (node.kind === 'interview') return interviewSubtreeHeight(nodes, sizes, nodeId);
+  if (node.kind === 'group') {
+    const bounds = freeGroupBounds(nodes, sizes, nodeId);
+    if (!bounds) return sizeOf(node, sizes).height;
+    return bounds.y + bounds.h - node.y;
+  }
   const self = sizeOf(node, sizes).height;
   const kids = childrenOf(nodes, nodeId);
   if (kids.length === 0) return self;

@@ -765,7 +765,12 @@ export function useAiActions(deps: AiActionsDeps) {
     });
     setSelectedId(id);
     setModal(null);
-    if (!parentId) void startInterview(id);
+    if (!parentId) {
+      const roots = depsRef.current.nodesRef.current.filter(
+        (node) => node.kind === 'idea' && node.parentId === null,
+      );
+      if (roots.length === 1) void startInterview(id);
+    }
   };
 
   const addFreeNodeAt = (clientX: number, clientY: number) => {

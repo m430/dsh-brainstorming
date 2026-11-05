@@ -31,6 +31,7 @@ const NODE_KINDS: readonly NodeKind[] = [
   'intent',
   'statement',
   'interview',
+  'group',
 ];
 const NODE_STATUSES: readonly NodeStatus[] = ['ready', 'thinking', 'error'];
 const NODE_BUSY: readonly NodeBusy[] = [
@@ -197,15 +198,17 @@ export function buildContextText(nodes: BrainstormNode[], nodeId: string): strin
           ? '点子'
           : node.kind === 'interview'
             ? '访谈'
-            : node.kind === 'question'
-              ? '追问'
-              : node.kind === 'intent'
-                ? '意图'
-                : node.kind === 'statement'
-                  ? '问题陈述'
-                  : node.kind === 'outline'
-                    ? '调研大纲'
-                    : '调研结果';
+            : node.kind === 'group'
+              ? '分组'
+              : node.kind === 'question'
+                ? '追问'
+                : node.kind === 'intent'
+                  ? '意图'
+                  : node.kind === 'statement'
+                    ? '问题陈述'
+                    : node.kind === 'outline'
+                      ? '调研大纲'
+                      : '调研结果';
       const answer =
         node.kind === 'question' && typeof node.answer === 'string' && node.answer.trim() !== ''
           ? `回答：${node.answer.trim()}`

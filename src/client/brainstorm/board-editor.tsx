@@ -8,14 +8,24 @@ import type {
   Translate,
 } from '../../shared/types.js';
 import { postApi } from '../api.js';
-import { isPlaceholderBoardTitle } from '../model.js';
+import { isPlaceholderBoardTitle, makeId } from '../model.js';
 import { Button } from '../ui/button.js';
 import { Input } from '../ui/input.js';
 import { BoardBackdrop } from './board-backdrop.js';
+import { GroupFrame } from './group-frame.js';
 import { InterviewGrid } from './interview-grid.js';
-import { isInterviewBranchLocked, reflowChildren, translateSubtree } from './layout.js';
+import {
+  GROUP_LABEL_HEIGHT,
+  GROUP_PAD,
+  isInterviewBranchLocked,
+  makeNode,
+  nodesAABB,
+  reflowChildren,
+  translateSubtree,
+} from './layout.js';
 import { BrainstormModal } from './modal.js';
 import { NodeCard } from './node-card.js';
+import { SelectionOverlay } from './selection-overlay.js';
 import { collectSubtreeIds, countDescendants } from './tree.js';
 import type { BrainstormModalState } from './types.js';
 import { useAiActions } from './use-ai-actions.js';
@@ -72,6 +82,8 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
     measure,
     selectedId,
     setSelectedId,
+    selectedIds,
+    setSelectedIds,
     autoEditId,
     setAutoEditId,
     mutate,
@@ -79,6 +91,7 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
     saveStatus,
     persistPatch,
   } = state;
+  const selectedIdSet = React.useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const viewport = useBoardViewport({
     canvasRef,
@@ -89,6 +102,7 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
     setPan,
     setZoom,
     setSelectedId,
+    setSelectedIds,
   });
 
   const markEntering = React.useCallback((ids: string[]) => {
@@ -143,7 +157,15 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
           : typeof patch.content === 'string'
             ? patch.content.trim()
             : (after?.content || '').trim();
+      // Only the first contentful root idea auto-enters interview; later free nodes stay plain.
       if (!hadContent && nextContent !== '') {
+        const contentfulRoots = nodesRef.current.filter(
+          (node) =>
+            node.kind === 'idea' &&
+            node.parentId === null &&
+            (node.content || '').trim() !== '',
+        );
+        if (contentfulRoots.length !== 1 || contentfulRoots[0]?.id !== id) return;
         const hasInterview = nodesRef.current.some(
           (node) => node.kind === 'interview' && node.parentId === id,
         );
@@ -157,8 +179,70 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
     if (isInterviewBranchLocked(nodesRef.current, nodeId)) return;
     const ids = collectSubtreeIds(nodesRef.current, nodeId);
     mutate((previous) => previous.filter((node) => !ids.has(node.id)));
-    setSelectedId((previous) => (previous && ids.has(previous) ? null : previous));
+    setSelectedIds((previous) => previous.filter((id) => !ids.has(id)));
     setModal(null);
+  };
+
+  const deleteSelected = () => {
+    const targets = selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : [];
+    if (targets.length === 0) return;
+    const remove = new Set<string>();
+    for (const id of targets) {
+      if (isInterviewBranchLocked(nodesRef.current, id)) continue;
+      for (const child of collectSubtreeIds(nodesRef.current, id)) remove.add(child);
+    }
+    if (remove.size === 0) return;
+    mutate((previous) => previous.filter((node) => !remove.has(node.id)));
+    setSelectedIds((previous) => previous.filter((id) => !remove.has(id)));
+    setModal(null);
+  };
+
+  const groupableIds = React.useMemo(() => {
+    return selectedIds.filter((id) => {
+      const node = nodes.find((item) => item.id === id);
+      if (!node) return false;
+      if (node.kind === 'interview' || node.kind === 'group') return false;
+      if (node.kind === 'question' && node.clarifyRootId) return false;
+      return true;
+    });
+  }, [selectedIds, nodes]);
+
+  const selectionBounds = React.useMemo(() => {
+    if (selectedIds.length < 2) return null;
+    const inner = nodesAABB(nodes, sizes, selectedIds);
+    if (!inner) return null;
+    return {
+      x: inner.x - GROUP_PAD,
+      y: inner.y - GROUP_PAD,
+      w: inner.w + GROUP_PAD * 2,
+      h: inner.h + GROUP_PAD * 2,
+    };
+  }, [selectedIds, nodes, sizes]);
+
+  const createGroupFromSelection = () => {
+    if (groupableIds.length < 2) return;
+    const inner = nodesAABB(nodesRef.current, sizes, groupableIds);
+    if (!inner) return;
+    const groupId = makeId();
+    const frameX = inner.x - GROUP_PAD;
+    const frameY = inner.y - GROUP_PAD;
+    const idSet = new Set(groupableIds);
+    mutate((previous) => [
+      ...previous.map((node) => (idSet.has(node.id) ? { ...node, parentId: groupId } : node)),
+      makeNode({
+        id: groupId,
+        kind: 'group',
+        title: t('brainstorm.groupTitle'),
+        content: '',
+        parentId: null,
+        // Match interview: title at content-left (PAD inside the frame), above the frame.
+        x: frameX + GROUP_PAD,
+        y: frameY - GROUP_LABEL_HEIGHT,
+        width: 96,
+      }),
+    ]);
+    setSelectedIds([groupId]);
+    setAutoEditId(groupId);
   };
 
   React.useEffect(() => () => {
@@ -167,10 +251,9 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!selectedId || modal) return;
+      if (selectedIds.length === 0 || modal) return;
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
-      if (isInterviewBranchLocked(nodesRef.current, selectedId)) return;
       const target = event.target;
       if (
         target instanceof HTMLElement &&
@@ -182,11 +265,11 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
         return;
       }
       event.preventDefault();
-      deleteNode(selectedId);
+      deleteSelected();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedId, modal, nodes]);
+  }, [selectedIds, modal, nodes]);
 
   // After measured height jumps, reflow siblings under the same parent.
   // Interview Q cards are visually CSS-grid; reflow still updates outline extras / bounds seeds.
@@ -302,10 +385,12 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
       key={node.id}
       node={node}
       t={t}
-      selected={node.id === selectedId}
+      selected={selectedIdSet.has(node.id)}
+      showTools={selectedIds.length === 1 && selectedId === node.id}
       zoom={zoom}
       entering={Boolean(enteringIds[node.id])}
       locked={isInterviewBranchLocked(nodes, node.id)}
+      spaceHeld={viewport.spaceHeld}
       gridItem={gridItem}
       onSelect={setSelectedId}
       onMove={moveSubtree}
@@ -376,7 +461,7 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
         </span>
       </div>
       <div
-        className="bn-canvas"
+        className={`bn-canvas bn-canvas--${viewport.canvasMode}`}
         ref={canvasRef}
         onPointerDown={viewport.onCanvasPointerDown}
         onPointerMove={viewport.onCanvasPointerMove}
@@ -385,23 +470,64 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
         onDoubleClick={onCanvasDoubleClick}
       >
         <BoardBackdrop nodes={nodes} sizes={sizes} pan={pan} zoom={zoom} enteringIds={enteringIds} />
-        <div className="bn-world" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
-          {Array.from(interviewById.values()).map((interview) => {
-            const questions = questionsByInterview.get(interview.id) || [];
-            return (
-              <InterviewGrid
-                key={`grid-${interview.id}`}
-                interview={interview}
-                questions={questions}
-              >
-                {questions.map((node) => renderNodeCard(node, true))}
-              </InterviewGrid>
-            );
-          })}
-          {nodes
-            .filter((node) => !gridQuestionIds.has(node.id))
-            .map((node) => renderNodeCard(node, false))}
+        {/*
+          Pan via transform translate; zoom via CSS `zoom` (not transform:scale).
+          scale() rasterizes the layer then upscales → blurry text when zoomed in.
+          `zoom` reflows/repaints at the target scale so glyphs stay sharp.
+        */}
+        <div className="bn-worldPan" style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}>
+          <div className="bn-world" style={{ zoom }}>
+            {nodes
+              .filter((node) => node.kind === 'group')
+              .map((group) => (
+                <GroupFrame
+                  key={`frame-${group.id}`}
+                  group={group}
+                  nodes={nodes}
+                  sizes={sizes}
+                  selected={selectedIdSet.has(group.id)}
+                />
+              ))}
+            {Array.from(interviewById.values()).map((interview) => {
+              const questions = questionsByInterview.get(interview.id) || [];
+              return (
+                <InterviewGrid
+                  key={`grid-${interview.id}`}
+                  interview={interview}
+                  questions={questions}
+                >
+                  {questions.map((node) => renderNodeCard(node, true))}
+                </InterviewGrid>
+              );
+            })}
+            {nodes
+              .filter((node) => !gridQuestionIds.has(node.id))
+              .map((node) => renderNodeCard(node, false))}
+            {selectionBounds ? (
+              <SelectionOverlay
+                x={selectionBounds.x}
+                y={selectionBounds.y}
+                w={selectionBounds.w}
+                h={selectionBounds.h}
+                t={t}
+                canGroup={groupableIds.length >= 2}
+                onDelete={deleteSelected}
+                onCreateGroup={createGroupFromSelection}
+              />
+            ) : null}
+          </div>
         </div>
+        {viewport.marqueeRect ? (
+          <div
+            className="bn-marquee"
+            style={{
+              left: viewport.marqueeRect.left,
+              top: viewport.marqueeRect.top,
+              width: viewport.marqueeRect.width,
+              height: viewport.marqueeRect.height,
+            }}
+          />
+        ) : null}
         {nodes.length === 0 ? (
           <div className="bn-empty">
             <div className="bn-emptyIcon" aria-hidden="true">◇</div>
