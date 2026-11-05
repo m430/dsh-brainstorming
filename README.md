@@ -35,7 +35,7 @@ dsh-brainstorming
 或指定版本：
 
 ```text
-dsh-brainstorming@0.0.3
+dsh-brainstorming@0.0.4
 ```
 
 安装后刷新页面，左侧栏会出现「头脑风暴」面板。
