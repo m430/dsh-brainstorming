@@ -17,7 +17,7 @@ export function GroupFrame({ group, nodes, sizes, selected = false }: GroupFrame
   if (!bounds) return null;
   return (
     <div
-      className={`bn-freeGroup${selected ? ' bn-freeGroupSelected' : ''}`}
+      className={`bn-groupFrame${selected ? ' bn-groupFrameSelected' : ''}`}
       style={{ left: bounds.x, top: bounds.y, width: bounds.w, height: bounds.h }}
       data-group-id={group.id}
     />

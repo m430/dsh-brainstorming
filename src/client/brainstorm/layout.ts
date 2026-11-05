@@ -8,14 +8,37 @@ export const INTERVIEW_COLS = 4;
 export const INTERVIEW_CARD_WIDTH = 260;
 export const INTERVIEW_H_GAP = 16;
 export const INTERVIEW_V_GAP = 16;
-/** Title sits outside above the group frame (Obsidian-style). */
-export const INTERVIEW_LABEL_HEIGHT = 20;
+/**
+ * Group chrome model (interview + free group share this):
+ * - Title NodeCard at (node.x, node.y), outside above the frame (chip style)
+ * - Frame top = node.y + labelHeight (title-anchored, never overlaps the label)
+ * - Frame left ≈ node.x - PAD (title inset to content-left, like Obsidian)
+ * - Selected frame uses .bn-groupFrameSelected (brand border)
+ * Interview = locked title + thinking/warn; free group = editable chip title.
+ */
+/** Shared title slot for chip (24px) + gap above the frame. */
+export const GROUP_LABEL_HEIGHT = 30;
+export const INTERVIEW_LABEL_HEIGHT = GROUP_LABEL_HEIGHT;
 export const INTERVIEW_GROUP_PAD = 14;
+export const GROUP_PAD = INTERVIEW_GROUP_PAD;
+
+export function groupLabelHeight(_node?: Pick<BrainstormNode, 'kind'>): number {
+  return GROUP_LABEL_HEIGHT;
+}
+
+/** Top-left of the group frame under a title node (interview or free group). */
+export function groupFrameOrigin(node: BrainstormNode): { x: number; y: number } {
+  return {
+    x: node.x - GROUP_PAD,
+    y: node.y + groupLabelHeight(node),
+  };
+}
 
 export function interviewContentOrigin(interview: BrainstormNode): { x: number; y: number } {
+  const frame = groupFrameOrigin(interview);
   return {
     x: interview.x,
-    y: interview.y + INTERVIEW_LABEL_HEIGHT + INTERVIEW_GROUP_PAD,
+    y: frame.y + INTERVIEW_GROUP_PAD,
   };
 }
 
@@ -42,7 +65,7 @@ export function sizeOf(node: BrainstormNode, sizes: NodeSizes): { width: number;
   if (node.kind === 'interview' || node.kind === 'group') {
     return {
       width: node.width || 96,
-      height: sizes[node.id]?.height || INTERVIEW_LABEL_HEIGHT,
+      height: sizes[node.id]?.height || groupLabelHeight(node),
     };
   }
   return {
@@ -50,10 +73,6 @@ export function sizeOf(node: BrainstormNode, sizes: NodeSizes): { width: number;
     height: sizes[node.id]?.height || estimateNodeHeight(node),
   };
 }
-
-export const GROUP_PAD = INTERVIEW_GROUP_PAD;
-/** Room for title chip (+ edit border) above the frame — taller than plain interview label. */
-export const GROUP_LABEL_HEIGHT = 28;
 
 /** World-space AABB of the given node ids (skips interview/group chrome-only nodes). */
 export function nodesAABB(
@@ -81,12 +100,15 @@ export function nodesAABB(
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
-/** Content frame for a freeform group (members keep absolute world coords). */
+/** Content frame for a freeform group — title-anchored top; member-hugged left/right/bottom. */
 export function freeGroupBounds(
   nodes: BrainstormNode[],
   sizes: NodeSizes,
   groupId: string,
 ): { x: number; y: number; w: number; h: number } | null {
+  const group = nodes.find((node) => node.id === groupId && node.kind === 'group');
+  if (!group) return null;
+  const origin = groupFrameOrigin(group);
   const members = nodes.filter((node) => node.parentId === groupId);
   const inner = nodesAABB(
     members,
@@ -94,21 +116,30 @@ export function freeGroupBounds(
     members.map((node) => node.id),
   );
   if (!inner) {
-    const group = nodes.find((node) => node.id === groupId && node.kind === 'group');
-    if (!group) return null;
-    // Title sits inset like interview (content-left); frame hugs PAD outside it.
-    return {
-      x: group.x - GROUP_PAD,
-      y: group.y + GROUP_LABEL_HEIGHT,
-      w: 200,
-      h: 120,
-    };
+    return { x: origin.x, y: origin.y, w: 200, h: 120 };
   }
+  // Horizontal: always hug members so title at (x + PAD) lines up with the leftmost card.
+  const x = inner.x - GROUP_PAD;
+  const bottom = Math.max(inner.y + inner.h + GROUP_PAD, origin.y + 120);
   return {
-    x: inner.x - GROUP_PAD,
-    y: inner.y - GROUP_PAD,
+    x,
+    y: origin.y,
     w: inner.w + GROUP_PAD * 2,
-    h: inner.h + GROUP_PAD * 2,
+    h: bottom - origin.y,
+  };
+}
+
+/** Title world position for a free group: content-left (card-aligned), above the frame. */
+export function freeGroupTitlePosition(
+  nodes: BrainstormNode[],
+  sizes: NodeSizes,
+  group: BrainstormNode,
+): { x: number; y: number } {
+  const bounds = freeGroupBounds(nodes, sizes, group.id);
+  if (!bounds) return { x: group.x, y: group.y };
+  return {
+    x: bounds.x + GROUP_PAD,
+    y: bounds.y - GROUP_LABEL_HEIGHT,
   };
 }
 
@@ -387,6 +418,9 @@ export function reflowChildren(
     }
     return next;
   }
+
+  // Freeform group: members keep world coords; frame chrome follows the title (groupFrameOrigin).
+  if (liveParent.kind === 'group') return nodes;
 
   const x = liveParent.x + nodeWidth(liveParent) + H_GAP;
   let preferredY = liveParent.y;

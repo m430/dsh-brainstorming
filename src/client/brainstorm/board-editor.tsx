@@ -17,6 +17,7 @@ import { InterviewGrid } from './interview-grid.js';
 import {
   GROUP_LABEL_HEIGHT,
   GROUP_PAD,
+  freeGroupTitlePosition,
   isInterviewBranchLocked,
   makeNode,
   nodesAABB,
@@ -224,8 +225,6 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
     const inner = nodesAABB(nodesRef.current, sizes, groupableIds);
     if (!inner) return;
     const groupId = makeId();
-    const frameX = inner.x - GROUP_PAD;
-    const frameY = inner.y - GROUP_PAD;
     const idSet = new Set(groupableIds);
     mutate((previous) => [
       ...previous.map((node) => (idSet.has(node.id) ? { ...node, parentId: groupId } : node)),
@@ -235,10 +234,9 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
         title: t('brainstorm.groupTitle'),
         content: '',
         parentId: null,
-        // Match interview: title at content-left (PAD inside the frame), above the frame.
-        x: frameX + GROUP_PAD,
-        y: frameY - GROUP_LABEL_HEIGHT,
-        width: 96,
+        // Content-left (= leftmost card); frame sits PAD outside, top = y + GROUP_LABEL_HEIGHT.
+        x: inner.x,
+        y: inner.y - GROUP_PAD - GROUP_LABEL_HEIGHT,
       }),
     ]);
     setSelectedIds([groupId]);
@@ -380,10 +378,16 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
     return ids;
   }, [questionsByInterview]);
 
-  const renderNodeCard = (node: BrainstormNode, gridItem = false) => (
+  const renderNodeCard = (node: BrainstormNode, gridItem = false) => {
+    // Free-group title: render card-aligned (PAD inside frame) without writing back to state.
+    const displayNode =
+      node.kind === 'group'
+        ? { ...node, ...freeGroupTitlePosition(nodes, sizes, node) }
+        : node;
+    return (
     <NodeCard
       key={node.id}
-      node={node}
+      node={displayNode}
       t={t}
       selected={selectedIdSet.has(node.id)}
       showTools={selectedIds.length === 1 && selectedId === node.id}
@@ -393,7 +397,17 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
       spaceHeld={viewport.spaceHeld}
       gridItem={gridItem}
       onSelect={setSelectedId}
-      onMove={moveSubtree}
+      onMove={(id, x, y) => {
+        // Drag deltas must be relative to durable coords, not the display snap.
+        const durable = nodesRef.current.find((item) => item.id === id);
+        if (!durable) return;
+        const display =
+          durable.kind === 'group' ? freeGroupTitlePosition(nodesRef.current, sizes, durable) : durable;
+        const dx = x - display.x;
+        const dy = y - display.y;
+        if (dx === 0 && dy === 0) return;
+        mutate((previous) => translateSubtree(previous, id, dx, dy));
+      }}
       onMeasure={measure}
       onOption={actions.selectOption}
       onRetry={actions.retryNode}
@@ -424,7 +438,8 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
       onAutoEditHandled={() => setAutoEditId(null)}
       onDiscard={(id) => deleteNode(id)}
     />
-  );
+    );
+  };
 
   return (
     <div className="bn-editor">
@@ -495,6 +510,7 @@ export function BoardEditor({ board, t, onBack, onChange }: BoardEditorProps) {
                   key={`grid-${interview.id}`}
                   interview={interview}
                   questions={questions}
+                  selected={selectedIdSet.has(interview.id)}
                 >
                   {questions.map((node) => renderNodeCard(node, true))}
                 </InterviewGrid>

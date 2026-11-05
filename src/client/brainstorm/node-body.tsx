@@ -386,7 +386,7 @@ export function NodeBody(props: NodeBodyProps) {
     const failed = Boolean(node.error) && !thinking;
     return (
       <div className="bn-groupTitle" aria-busy={thinking || undefined}>
-        <span className="bn-groupTitleText">{t('brainstorm.interviewTitle')}</span>
+        <span className="bn-groupTitleText bn-groupTitleChip">{t('brainstorm.interviewTitle')}</span>
         {thinking ? (
           <span className="bn-groupThinking">
             <Spinner />

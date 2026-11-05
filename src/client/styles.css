@@ -84,7 +84,10 @@
 .bn-nodeWrap.bn-dragging{cursor:grabbing;z-index:3}
 .bn-canvas--space .bn-nodeWrap,.bn-canvas--pan .bn-nodeWrap,.bn-canvas--marquee .bn-nodeWrap{cursor:inherit}
 .bn-nodeWrap.bn-enter{animation:bn-node-enter .55s ease-out both}
-.bn-interviewGrid{position:absolute;box-sizing:border-box;display:grid;align-items:start;justify-items:stretch;border:1px solid color-mix(in srgb,var(--dsw-alias-label-secondary) 35%,transparent);border-radius:16px;background:color-mix(in srgb,var(--dsw-alias-label-secondary) 6%,transparent);pointer-events:none;z-index:0}
+/* Shared Obsidian-style group chrome (interview grid + free group). */
+.bn-groupFrame{position:absolute;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--dsw-alias-label-secondary) 35%,transparent);border-radius:16px;background:color-mix(in srgb,var(--dsw-alias-label-secondary) 6%,transparent);pointer-events:none;z-index:0}
+.bn-groupFrameSelected{border-color:var(--dsw-alias-brand-primary)}
+.bn-interviewGrid{display:grid;align-items:start;justify-items:stretch}
 .bn-interviewGrid > .bn-nodeWrap{pointer-events:auto;z-index:2}
 .bn-interviewGridEmpty{pointer-events:none}
 @keyframes bn-node-enter{
@@ -153,15 +156,14 @@
 .bn-kind-interview,.bn-kind-group{border:none!important;background:transparent!important;box-shadow:none!important;padding:0;border-radius:0;min-height:0}
 .bn-nodeWrap.bn-selected .bn-kind-interview,.bn-nodeWrap.bn-selected .bn-kind-group{box-shadow:none!important;border:none!important;outline:none}
 .bn-nodeWrap.bn-wrap-interview.bn-selected .bn-groupTitleText,.bn-nodeWrap.bn-wrap-group.bn-selected .bn-groupTitleText{color:var(--dsw-alias-brand-primary)}
-.bn-freeGroup{position:absolute;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--dsw-alias-label-secondary) 35%,transparent);border-radius:16px;background:color-mix(in srgb,var(--dsw-alias-label-secondary) 6%,transparent);pointer-events:none;z-index:0}
-.bn-freeGroupSelected{border-color:var(--dsw-alias-brand-primary)}
 .bn-selectionOverlay{position:absolute;z-index:12;pointer-events:none}
 .bn-selectionAABB{position:absolute;inset:0;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--dsw-alias-label-secondary) 35%,transparent);border-radius:16px;background:color-mix(in srgb,var(--dsw-alias-label-secondary) 6%,transparent);opacity:.55;pointer-events:none}
 .bn-selectionTools{position:absolute;left:50%;top:-10px;transform:translate(-50%,-100%);display:flex;align-items:center;gap:4px;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l1);border-radius:999px;padding:5px 6px;box-shadow:0 4px 16px color-mix(in srgb,var(--dsw-alias-label-primary) 14%,transparent);pointer-events:auto;white-space:nowrap}
 .bn-selectionToolBtn.ui-btn{height:30px;min-width:30px;padding:0 10px;gap:6px;border-radius:999px;font-size:12px;font-weight:500;line-height:18px}
 .bn-selectionToolBtn.ui-btn svg{flex:none}
-.bn-groupTitle{display:flex;align-items:center;gap:6px;margin:0;min-height:24px;white-space:nowrap;padding:0}
+.bn-groupTitle{display:flex;align-items:center;gap:6px;margin:0;min-height:20px;max-height:30px;white-space:nowrap;padding:0;box-sizing:border-box}
 .bn-groupTitleText{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:500;line-height:20px}
+/* Chip fill matches .bn-groupFrame; transparent border reserves edit-state size (no jitter). */
 .bn-groupTitleChip{box-sizing:border-box;display:inline-block;max-width:240px;height:24px;overflow:hidden;text-overflow:ellipsis;padding:1px 7px;border:1px solid transparent;border-radius:6px;background:color-mix(in srgb,var(--dsw-alias-label-secondary) 6%,transparent);line-height:20px}
 .bn-groupThinking{display:inline-flex;align-items:center;gap:5px;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;opacity:.85}
 .bn-groupWarn{position:relative;display:inline-flex;align-items:center}
